@@ -1,0 +1,5 @@
+AuthEdu database migrations
+
+Run from the backend directory with DATABASE_URL set:
+  uv run --locked alembic upgrade head
+  uv run --locked alembic downgrade base

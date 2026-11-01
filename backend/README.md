@@ -1,13 +1,14 @@
 # AuthEdu backend
 
-This is the minimal Python API foundation. It intentionally implements no authentication, database access, or readiness checks yet.
+The API foundation includes a PostgreSQL-backed persistence layer and versioned schema. It intentionally does not implement registration, login, password hashing, or note endpoints yet. `GET /health` reports process liveness and does not require PostgreSQL.
 
 ## Requirements
 
 - CPython 3.14.10 (pinned in `.python-version`)
 - uv 0.13.6 (required by `pyproject.toml`)
+- Docker Engine and Docker Compose for PostgreSQL and persistence integration tests
 
-Install uv using the [official instructions](https://docs.astral.sh/uv/getting-started/installation/), then run commands from `backend/`.
+Install uv using the [official instructions](https://docs.astral.sh/uv/getting-started/installation/), then run backend commands from `backend/`.
 
 ## First-time setup
 
@@ -17,33 +18,61 @@ Sync the exact dependency versions recorded in `uv.lock`:
 uv sync --locked
 ```
 
-You normally need this explicitly the first time, or after dependencies change. `uv run --locked` also checks and syncs the environment when needed, so it is not necessary to repeat `uv sync` before every launch.
+To run a local PostgreSQL 18.6 service, create an untracked root `.env` file with `POSTGRES_DB`, `POSTGRES_USER`, and optionally `POSTGRES_PORT`. Store its password separately in `.secrets/postgres_password`, which Compose mounts as a read-only secret file for PostgreSQL. Generate a local password file with:
+
+```sh
+mkdir -p .secrets
+python3 -c 'import secrets; print(secrets.token_urlsafe(32))' > .secrets/postgres_password
+chmod 600 .secrets/postgres_password
+```
+
+Both `.env` and `.secrets/` are ignored by Git. Never commit or paste their contents into logs, screenshots, or examples.
+
+From the repository root, start the database:
+
+```sh
+docker compose up -d postgres
+```
+
+Load the non-secret settings and construct the API connection URL from the generated URL-safe password, then apply migrations from `backend/`:
+
+```sh
+set -a; . ../.env; set +a
+export DATABASE_URL="postgresql+psycopg://${POSTGRES_USER}:$(cat ../.secrets/postgres_password)@127.0.0.1:${POSTGRES_PORT:-5432}/${POSTGRES_DB}"
+uv run --locked alembic upgrade head
+```
+
+`DATABASE_URL` is read by both the API and Alembic. Alembic commands fail with a generic configuration message if it is missing or uses another driver; credentials are not stored in `alembic.ini` or logged by SQLAlchemy. The generated password uses URL-safe characters. If you choose a different password, URL-escape special characters when constructing the connection URL. To reverse the initial schema in this local database, run `uv run --locked alembic downgrade base`. This drops the `users` and `notes` tables: do not run it where their data matters.
+
+Compose stores local development data in a named volume. `docker compose down` stops the service and preserves that volume; deleting the volume is destructive. Integration tests do not use this service or its data.
 
 ## Check the code
-
-These commands are for development and review; you do not need to run them just to start the API:
 
 ```sh
 uv run --locked ruff check .
 uv run --locked pytest
 ```
 
-Ruff checks code style and common errors. Pytest runs the endpoint contract test.
+Persistence tests require Docker and launch PostgreSQL 18.6 in a disposable Testcontainers instance. The fixture generates a process-local random password, creates a uniquely named database per test, applies the migrations, and drops the test database and container in teardown. Tests never read the local `.env`, connect to the local Compose service, or use developer data.
 
 ## Start the API
 
-Run this whenever you want the local API available:
+With `DATABASE_URL` loaded, run:
 
 ```sh
 uv run --locked uvicorn authedu_api.main:app --host 127.0.0.1 --port 8000
 ```
 
-Keep that terminal open while using the API. The server listens only on your computer at `http://127.0.0.1:8000`. To check it, open another terminal and run:
+The API binds only to this computer at `http://127.0.0.1:8000`. To check it, open another terminal and run:
 
 ```sh
 curl --fail http://127.0.0.1:8000/health
 ```
 
-Expected response: `{"status":"ok"}`.
+Expected response: `{"status":"ok"}`. The app creates its database engine during application lifespan only when `DATABASE_URL` is configured, and disposes that engine at shutdown. Request-scoped SQLAlchemy sessions are closed automatically; callers must commit explicitly, while closing an uncommitted session rolls its transaction back. The health endpoint remains available without a database because it measures process liveness, not dependency readiness.
 
-`GET /health` is deliberately independent of PostgreSQL: it answers whether this API process can handle a request, not whether a database or other dependency is ready. It returns no configuration or credential details. See [the technology decision record](../docs/technology-decisions.md) for the dated stack compatibility notes. This educational reference is not a production identity provider.
+## Data model and security boundary
+
+The initial reversible migration creates `users` and `notes`; the next migration adds a timezone-aware `notes.updated_at` column. PostgreSQL initializes it for new notes and for existing rows when upgrading. SQLAlchemy refreshes it when an ORM update changes a note; direct SQL updates do not automatically refresh it. User email identity is protected by a database-enforced unique index over `lower(email)`; note ownership is a non-null foreign key with cascading deletion. `password_hash` is nullable until a later issue adds authentication and is reserved exclusively for encoded password hashes—never plaintext or placeholder credentials. The `UserRead` API schema explicitly lists public fields and excludes persistence-only fields. No registration, login, or note API is part of this issue.
+
+See [the technology decision record](../docs/technology-decisions.md) for stack compatibility details. This educational reference is not a production identity provider.
