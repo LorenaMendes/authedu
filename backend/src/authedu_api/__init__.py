@@ -1,0 +1,1 @@
+"""AuthEdu educational API package."""
