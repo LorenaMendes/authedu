@@ -16,7 +16,7 @@ A **custom agent** changes who is doing the work and what tools/role they have. 
 ## A good first workflow
 
 1. The project owner approved the initial stack targets in GitHub issue #1: FastAPI, PostgreSQL 18 with SQLAlchemy/migrations, React/Vite, CPython 3.14.10, Node.js 26.13, `uv`, and `npm`. The compatibility review and decision record are complete; the application is not yet scaffolded. The plan's pytest/httpx, Playwright, and Docker Compose recommendations should be checked against each task rather than assumed implemented.
-2. Choose **AuthEdu Feature Engineer** in the agent picker and start with issue #2: “Implement the minimal Python API health service. Follow the completed stack decision in `docs/technology-decisions.md`; verify current pins before scaffolding, then show me your plan and explain the health check and tests.”
+2. Choose **AuthEdu Feature Engineer** in the agent picker and continue with issue #3: “Implement the frontend health screen from the issue acceptance criteria. Follow the completed stack decision in `docs/technology-decisions.md`; show your plan before editing, then explain the browser-to-API proxy, status handling, and tests.”
 3. Review the plan before the implementation progresses. Correct assumptions early; AI is most useful when you give it acceptance criteria and constraints, not just a feature name.
 4. Inspect the diff and test results. Ask the security reviewer to review authentication, authorization, credential storage, cookies, CSRF, token validation, or security configuration changes.
 5. Ask follow-up questions about tradeoffs and request a small learning exercise. Don't accept “tests pass” as proof that security is correct; understand which threat each test rejects.

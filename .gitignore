@@ -6,3 +6,9 @@
 .ruff_cache/
 .coverage
 htmlcov/
+
+# JavaScript dependencies and generated output
+**/node_modules/
+**/dist/
+**/coverage/
+**/.vite/
