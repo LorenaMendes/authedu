@@ -1,6 +1,6 @@
 # Initial GitHub Backlog
 
-This is the planning seed for **AuthEdu Development**. The first three starter tasks are live as [#1 — foundation technology decisions](https://github.com/LorenaMendes/authedu/issues/1), [#2 — Python API health service](https://github.com/LorenaMendes/authedu/issues/2), and [#3 — frontend health screen](https://github.com/LorenaMendes/authedu/issues/3). Issue #1 is complete using CPython 3.14.10, which is covered by FastAPI's official test matrix; issue #2 is now ready. See [the technology decision record](technology-decisions.md). The epics and remaining foundation tasks below are not yet live issues. Map or refine them against the starter issues before publishing so work is not duplicated.
+This is the planning seed for **AuthEdu Development**. The first three starter tasks are live as [#1 — foundation technology decisions](https://github.com/LorenaMendes/authedu/issues/1), [#2 — Python API health service](https://github.com/LorenaMendes/authedu/issues/2), and [#3 — frontend health screen](https://github.com/LorenaMendes/authedu/issues/3). Issue #1 is complete using CPython 3.14.10, which is covered by FastAPI's official test matrix; issue #2 is merged, and issue #3 is in implementation/review. See [the technology decision record](technology-decisions.md). The epics and remaining foundation tasks below are not yet live issues. Map or refine them against the starter issues before publishing so work is not duplicated.
 
 **Milestone for all items below:** v0.1 — Sessions, JWT, and Authorization.
 
