@@ -1,0 +1,36 @@
+name: Implementation task
+description: Define one independently reviewable deliverable.
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: Describe the observable outcome, not just an activity.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Include boundaries and relevant security or educational requirements.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: "- [ ] Behavior is implemented.\n- [ ] Relevant success and rejection tests pass.\n- [ ] Documentation matches the implementation."
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Parent epic and dependencies
+      description: Link the parent epic and prerequisite issues; use GitHub sub-issue and dependency relationships where available.
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: Tests or a repeatable manual procedure that establish completion.
+    validations:
+      required: true

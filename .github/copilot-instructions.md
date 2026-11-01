@@ -1,0 +1,11 @@
+# AuthEdu coding guidance
+
+- Treat `.github/project-plan.md` as the product/security source of truth and `docs/initial-backlog.md` as a planning seed. Read the relevant sections before changing behavior.
+- AuthEdu is an educational, secure-by-default reference app—not a production identity provider or an intentionally vulnerable lab. Make security boundaries visible and explain limitations honestly.
+- The project owner approved the initial stack targets in GitHub issue #1: FastAPI, PostgreSQL 18 with SQLAlchemy and migrations, React/Vite, CPython 3.14.10, Node.js 26.13, `uv`, and `npm`. This is not a claim that the app is scaffolded. Before implementation, verify requested runtimes and tools against official support/compatibility information, select and pin exact compatible versions (including Node's patch release and PostgreSQL image tag), and record them with lockfiles. If a target is unsupported or incompatible, pause and report evidence rather than silently substituting it. The product plan's other recommendations (pytest/httpx, Playwright, Docker Compose) still require inspection against the task and repository.
+- Implement the smallest complete vertical slice. Add/update tests and learner-facing docs with the behavior; run the narrow checks first, then relevant broader checks. Report commands and results accurately.
+- Never implement cryptographic primitives manually. Use maintained libraries for security-sensitive responsibilities and verify their configuration, validation, and maintenance status.
+- Derive identity and privileges only from validated credentials and trusted server-side data. Enforce authorization on every protected backend operation; keep authentication and authorization distinct.
+- Never expose or log passwords, password hashes, session IDs, access/refresh tokens, secrets, or private keys. Do not add credentials to fixtures, screenshots, artifacts, examples, or committed configuration.
+- Follow existing conventions when they exist. If a security-sensitive requirement is ambiguous or conflicts with the plan, pause to explain the tradeoff and ask before weakening a control.
+- In the final response, summarize changed behavior, tests, security considerations, and a short learning note explaining the important design choice in plain language.

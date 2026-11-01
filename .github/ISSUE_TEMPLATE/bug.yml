@@ -1,0 +1,26 @@
+name: Bug report
+description: Report incorrect behavior using redacted examples.
+body:
+  - type: markdown
+    attributes:
+      value: Do not include passwords, tokens, cookies, personal data, or other secrets. Do not disclose an unpatched security vulnerability in a public issue; use a private reporting channel if configured.
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the module and relevant environment details.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Redact credentials from logs and screenshots.
+    validations:
+      required: true

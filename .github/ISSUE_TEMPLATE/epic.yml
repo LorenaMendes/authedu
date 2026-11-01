@@ -1,0 +1,31 @@
+name: Epic
+description: Define a multi-issue outcome and its completion gate.
+title: "[Epic] "
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What should a learner or contributor be able to do when this epic is complete?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and exclusions
+      description: State what is included and deliberately excluded.
+    validations:
+      required: true
+  - type: textarea
+    id: gate
+    attributes:
+      label: Completion gate
+      description: Verifiable conditions beyond simply closing the child issues.
+      placeholder: "- [ ] Working flow, tests, tutorial, and diagram are complete."
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Link prerequisite issues or epics. Add implementation issues as GitHub sub-issues after creation.
