@@ -27,14 +27,14 @@ npm test
 npm run build
 ```
 
-## Run the full local health view
+## Run the frontend by itself
 
-Start the backend first in another terminal by following [backend setup](../backend/README.md). Then, from `frontend/`:
+For UI-only work, start the backend in another terminal by following [backend setup](../backend/README.md), then run from `frontend/`:
 
 ```sh
 npm run dev
 ```
 
-Open the local URL printed by Vite (normally `http://localhost:5173`). The Vite development proxy forwards browser requests at `/api/*` to `http://127.0.0.1:8000/*`, so the health screen's `/api/health` request reaches the backend's `GET /health`. If the backend is stopped, the UI shows an unavailable state and offers a retry.
+Open the local URL printed by Vite (normally `http://localhost:5173`). The Vite development proxy forwards browser requests at `/api/*` to `http://127.0.0.1:8000/*`, so the health screen's `/api/health` request reaches the backend's `GET /health`. This standalone HTTP mode is only for the current health screen and non-cookie development. It must not be used for cookie-authenticated modules. If the backend is stopped, the UI shows an unavailable state and offers a retry.
 
-The proxy is for local development. A production deployment will need an equivalent same-origin reverse-proxy rule; deployment configuration is outside this issue's scope.
+For the full local stack with trusted HTTPS and same-origin API proxying, follow [the local development guide](../docs/local-development.md). The proxy is for local development; production deployment needs an equivalent same-origin reverse-proxy rule, which is outside this issue's scope.
