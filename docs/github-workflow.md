@@ -2,9 +2,9 @@
 
 ## Publication status
 
-The private GitHub repository [LorenaMendes/authedu](https://github.com/LorenaMendes/authedu) is configured as the local `origin`. The stack-decision issue [#1](https://github.com/LorenaMendes/authedu/issues/1) is complete and closed; [#2 — Python API health service](https://github.com/LorenaMendes/authedu/issues/2) is unblocked, and [#3 — frontend health screen](https://github.com/LorenaMendes/authedu/issues/3) remains dependent on #2. The remaining backlog epics/tasks, milestone, labels, and Project have not been created; local planning files are not yet published.
+The private GitHub repository [LorenaMendes/authedu](https://github.com/LorenaMendes/authedu) has a `main` baseline containing the local planning and AI guidance files. Starter issues [#1](https://github.com/LorenaMendes/authedu/issues/1), [#2](https://github.com/LorenaMendes/authedu/issues/2), and [#3](https://github.com/LorenaMendes/authedu/issues/3) are closed; implementation PRs #4 and #5 were merged. The remaining roadmap is tracked by epics [#6–#9](https://github.com/LorenaMendes/authedu/issues/6) and foundation tasks [#10–#14](https://github.com/LorenaMendes/authedu/issues/10). The release milestone, custom labels, and Project board have not yet been created.
 
-Publish the local planning files, then continue with the GitHub setup below without duplicating starter issues #1–#3. Do not paste tokens or passwords into chat.
+Continue with the GitHub organization steps below. Do not recreate the existing issues. Do not paste tokens or passwords into chat.
 
 ## Initial GitHub Setup
 
@@ -14,8 +14,8 @@ Publish the local planning files, then continue with the GitHub setup below with
 4. Create the labels listed below.
 5. Create a user-owned GitHub Project named **AuthEdu Development**, with private visibility initially unless the board is deliberately intended to be public.
 6. Link the repository to the Project, and configure automatic addition of its open issues where supported. Add initial issues manually if automation is unavailable.
-7. Publish the four epics and six foundation tasks in the [initial backlog](initial-backlog.md). Add all ten issues to the first-release milestone and Project.
-8. Attach foundation tasks to their epic using GitHub sub-issues. Record prerequisites using dependency relationships where available, otherwise issue links.
+7. Add epics #6–#9 and foundation tasks #10–#14 to the v0.1 milestone and Project after creating them.
+8. Attach #10–#14 as child issues of epic #6 using GitHub sub-issues. Record prerequisites using dependency relationships where available, otherwise issue links. Issues #2 and #3 are completed foundation slices and should not be duplicated.
 9. Keep later modules as unmilestoned backlog epics when they become useful; do not expand them into detailed tasks yet.
 
 Issue templates intentionally do not auto-apply labels or assignees: labels do not yet exist, and ownership should be chosen deliberately.
