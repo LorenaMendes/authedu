@@ -15,7 +15,7 @@ Continue with the GitHub organization steps below. Do not recreate the existing 
 5. Create a user-owned GitHub Project named **AuthEdu Development**, with private visibility initially unless the board is deliberately intended to be public.
 6. Link the repository to the Project, and configure automatic addition of its open issues where supported. Add initial issues manually if automation is unavailable.
 7. Add epics #6–#9 and foundation tasks #10–#14 to the v0.1 milestone and Project after creating them.
-8. Attach #10–#14 as child issues of epic #6 using GitHub sub-issues. Record prerequisites using dependency relationships where available, otherwise issue links. Issues #2 and #3 are completed foundation slices and should not be duplicated.
+8. Foundation epic #6 now has completed #2/#3 and remaining tasks #10–#14 attached as GitHub sub-issues. Record remaining prerequisites using dependency relationships where available, otherwise issue links.
 9. Keep later modules as unmilestoned backlog epics when they become useful; do not expand them into detailed tasks yet.
 
 Issue templates intentionally do not auto-apply labels or assignees: labels do not yet exist, and ownership should be chosen deliberately.

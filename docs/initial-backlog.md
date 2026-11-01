@@ -42,7 +42,7 @@ Sizes are provisional. Split a task if implementation reveals multiple independe
 - [ ] Configuration examples contain no live secrets.
 - [ ] No security-sensitive placeholder endpoints are mistaken for working authentication.
 
-**Sub-issues:** #2 and #3 are the completed initial health slices; #10–#14 are the remaining foundation tasks. No prerequisite epic.
+**Sub-issues:** #2 and #3 are the completed initial health slices; #10–#14 are the remaining foundation tasks. These seven issues are formally attached to epic #6. No prerequisite epic.
 
 ### E2 — Session authentication
 
@@ -308,7 +308,8 @@ These are proposed local issue scopes to turn the Phase A/Phase B authentication
 - [ ] Create the milestone and labels.
 - [ ] Create and configure the Project using the [workflow guide](github-workflow.md).
 - [x] Create E1–E4 and the remaining foundation tasks as issues, avoiding duplication of completed starter issues #1–#3.
-- [ ] Attach #10–#14 as formal sub-issues of E1 and add all roadmap issues to the milestone and Project. Parent/dependency issue numbers are currently recorded in each issue body.
+- [x] Attach #2, #3, and #10–#14 as formal sub-issues of E1; parent/dependency issue numbers are recorded in each issue body.
+- [ ] Add roadmap issues to the milestone and Project.
 - [ ] After checking for duplicates and confirming F2/F3 status, create F7–F9 as E2 sub-issues and replace planning identifiers with actual links.
 - [ ] Set initial status, priority, and size using the summary table.
 - [x] Complete the F1 health-slice foundation through issues #2 and #3.
