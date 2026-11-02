@@ -1,7 +1,10 @@
 # Python environments and generated files
 **/.venv/
 **/.env
+**/.env.*
+!**/.env.example
 .secrets/
+.certs/
 **/__pycache__/
 *.py[cod]
 .pytest_cache/

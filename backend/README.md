@@ -55,7 +55,11 @@ uv run --locked pytest
 
 Persistence tests require Docker and launch PostgreSQL 18.6 in a disposable Testcontainers instance. The fixture generates a process-local random password, creates a uniquely named database per test, applies the migrations, and drops the test database and container in teardown. Tests never read the local `.env`, connect to the local Compose service, or use developer data.
 
-## Start the API
+## Start the full stack
+
+For the recommended API, UI, PostgreSQL, and local HTTPS workflow, follow the repository's [local development guide](../docs/local-development.md). It starts all services in Compose and waits for database and API readiness.
+
+## Start the API separately
 
 With `DATABASE_URL` loaded, run:
 
