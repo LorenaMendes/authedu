@@ -27,6 +27,8 @@ The supported full-stack development path uses Docker Compose for PostgreSQL, th
    ```
 
    This modifies the current user's local trust stores. Restart browsers after installation. On Linux, install the platform's `certutil` package first (for Debian/Ubuntu, `libnss3-tools`) if Firefox should trust the certificate; some browsers use a separate NSS trust database. Follow mkcert's [supported trust-store guidance](https://github.com/FiloSottile/mkcert#supported-root-stores) if a browser still reports the certificate as untrusted. Never install a development CA on a shared or production machine.
+
+   `mkcert` keeps its local CA under the directory printed by `mkcert -CAROOT`. Make sure the same `mkcert` executable and CA directory are used for both `mkcert -install` and certificate generation. Terminals launched by snap-installed applications such as VS Code can have a different `XDG_DATA_HOME`, and therefore a different CA directory, from a regular terminal. Compare `command -v mkcert` and `mkcert -CAROOT` in the terminal you use for setup. If you choose a fixed CA directory, set `CAROOT` before **both** commands, for example `export CAROOT="$HOME/.local/share/mkcert"`; run `mkcert -install`, then regenerate the localhost certificate in step 3 from that same terminal. Regenerating replaces the local leaf certificate/key, not the database. Do not copy, publish, or delete `rootCA-key.pem`; it can sign certificates trusted by your machine.
 3. Generate a certificate for the exact local names used to access Vite:
 
    ```sh
@@ -112,7 +114,7 @@ Check that `.certs/localhost.pem` and `.certs/localhost-key.pem` exist, are read
 
 ### Browser reports that the local certificate is untrusted
 
-Run `mkcert -install` for the same OS user who runs the browser, restart the browser, and verify it uses that user's trust store. Firefox may use a separate NSS database; on Linux install `libnss3-tools` and follow mkcert's [supported trust-store guidance](https://github.com/FiloSottile/mkcert#supported-root-stores). Trust only your own local development CA. Do not bypass certificate validation or use a browser exception as a production workaround.
+Run `command -v mkcert` and `mkcert -CAROOT` both where you generated the certificate and where you ran `mkcert -install`. They must identify the same executable and CA directory. If `CAROOT` differs, choose one directory, export it before running `mkcert -install`, then regenerate the localhost certificate with that same `CAROOT`; installing a different local CA does not trust the certificate you already generated. For snap-launched terminals, an `XDG_DATA_HOME` difference can explain why the paths differ. Restart the browser after installation. Firefox may use a separate NSS database; on Linux install `libnss3-tools` and follow mkcert's [supported trust-store guidance](https://github.com/FiloSottile/mkcert#supported-root-stores). Trust only your own local development CA. Do not bypass certificate validation or use a browser exception as a production workaround.
 
 ### API health check or browser proxy is unavailable
 
