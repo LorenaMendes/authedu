@@ -15,7 +15,11 @@ from sqlalchemy import func, select, text
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session
 
-from authedu_api.database import create_database_engine, database_url_from_environment
+from authedu_api.database import (
+    create_database_engine,
+    database_url_from_environment,
+    database_url_from_secret_file,
+)
 from authedu_api.models import Note, User
 
 DEMO_USERS = (
@@ -49,8 +53,9 @@ def _demo_database_url() -> URL:
     if os.environ.get("AUTHEDU_DEMO_MODE") != "1":
         raise DemoSafetyError("Set AUTHEDU_DEMO_MODE=1 in the local demo environment.")
 
-    database_url = database_url_from_environment()
-    assert database_url is not None
+    database_url = database_url_from_environment(required=False)
+    if database_url is None:
+        database_url = database_url_from_secret_file()
     expected_database = os.environ.get("AUTHEDU_DEMO_DATABASE")
     if not expected_database or database_url.database != expected_database:
         raise DemoSafetyError("The connected database does not match AUTHEDU_DEMO_DATABASE.")

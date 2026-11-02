@@ -65,6 +65,8 @@ docker compose exec backend python -m authedu_api.demo_data seed
 
 The command is idempotent: running it again does not duplicate or overwrite the demo records. It creates two fictional users with distinct owned notes. They have no password hashes and cannot log in; authentication is not implemented yet.
 
+The container puts `/opt/venv/bin` first on `PATH`, so `python` uses the installed app and dependencies. Each seed/reset process builds its database URL from the mounted password file and Compose settings when `DATABASE_URL` is absent: environment changes made by the API entrypoint are not inherited by a later `docker compose exec`. If an older image reports `No module named 'authedu_api'`, rebuild and recreate it with `docker compose up --build -d backend` before retrying.
+
 Remove only these demo records (not the whole database) with an explicit confirmation:
 
 ```sh

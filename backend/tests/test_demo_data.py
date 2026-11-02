@@ -1,5 +1,8 @@
 """Deterministic, fictional demo data and guarded selective reset tests."""
 
+import os
+import subprocess
+import sys
 from uuid import UUID, uuid4
 
 import pytest
@@ -52,6 +55,34 @@ def test_seed_is_idempotent_and_assigns_notes_to_distinct_users(test_database_ur
     assert users == tuple(sorted(DEMO_USERS))
     assert len(notes) == 2
     assert {owner_id for _, owner_id, _, _ in notes} == {user_id for user_id, _ in DEMO_USERS}
+
+
+def test_cli_seeds_twice_using_compose_secret_configuration(test_database_url, tmp_path) -> None:
+    secret_file = tmp_path / "database_password"
+    secret_file.write_text(test_database_url.password, encoding="utf-8")
+    environment = dict(os.environ)
+    environment.pop("DATABASE_URL", None)
+    environment.update(
+        DATABASE_PASSWORD_FILE=str(secret_file),
+        POSTGRES_USER=test_database_url.username,
+        POSTGRES_DB=test_database_url.database,
+        POSTGRES_HOST=test_database_url.host,
+        POSTGRES_PORT=str(test_database_url.port),
+    )
+    for _ in range(2):
+        result = subprocess.run(
+            [sys.executable, "-m", "authedu_api.demo_data", "seed"],
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0
+        assert result.stdout.strip() == "Fictional demo users and notes are present."
+        assert result.stderr == ""
+    assert _demo_snapshot(test_database_url) == (
+        tuple(sorted(DEMO_USERS)), tuple(sorted(DEMO_NOTES))
+    )
 
 
 def test_demo_users_have_no_password_hashes(test_database_url) -> None:
