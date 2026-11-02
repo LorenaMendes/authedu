@@ -59,8 +59,6 @@ docker compose up --build -d
 
 Compose waits for PostgreSQL and API health before starting the HTTPS frontend. Open <https://localhost:5173> and accept only a certificate issued by your locally installed mkcert CA. The browser's `/api/health` request is proxied to the API on the private Compose network. Verify the API directly if useful:
 
-If you are running another checkout with the same folder name, give this one a unique Compose project name and unused host ports to keep its containers and database volume separate; see [multiple checkouts](docs/local-development.md#start-and-verify).
-
 ```sh
 curl --fail http://127.0.0.1:8000/health
 ```

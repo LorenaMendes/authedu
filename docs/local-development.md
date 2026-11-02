@@ -54,15 +54,6 @@ Open <https://localhost:5173> (or the configured `FRONTEND_HOST_PORT`). Accept o
 
 With the Compose stack running and `AUTHEDU_DEMO_MODE=1` added to the local `.env`, create the repeatable fictional sample users and their notes with `docker compose exec backend python -m authedu_api.demo_data seed`. Run it again safely to ensure any missing fixture rows are present. To remove only those seeded records, use `docker compose exec backend python -m authedu_api.demo_data reset --confirm-demo-reset`. Reset checks the demo-mode flag, configured database name, and local database host, and requires the explicit confirmation flag; it refuses when demo IDs conflict with other identities/owners or when a demo user owns extra notes. Reset intentionally deletes the seeded demo rows even if their contents were edited. These commands are serialized against each other; the safety checks are for local learning, not production isolation. The sample users have no passwords and cannot log in until authentication is implemented.
 
-If you run more than one checkout whose directory has the same name, Compose may assign both checkouts the same default project name. That can reuse the first checkout's containers and persistent database volume even though the second checkout has a different password file. Give the second checkout its own project name **and** unused host ports in its ignored `.env`, for example `POSTGRES_PORT=15438`, `API_HOST_PORT=18080`, and `FRONTEND_HOST_PORT=15173`, then consistently add `-p authedu-test` to its Compose commands:
-
-```sh
-docker compose -p authedu-test up --build -d
-docker compose -p authedu-test ps
-```
-
-Open `https://localhost:15173` for that checkout. Use the same `-p authedu-test` with `exec`, `logs`, and `down`; `docker compose -p authedu-test down` stops it while preserving its separate volume. To avoid a name collision, choose a project name not used by another checkout. Do not copy or print password contents. A different password file does not change the password in an already initialized PostgreSQL volume.
-
 Useful status and logs:
 
 ```sh
@@ -99,10 +90,6 @@ Run Compose from the repository root and create the ignored local settings file 
 ### PostgreSQL/backend reports a missing or empty password secret
 
 Confirm `.secrets/postgres_password` exists and is non-empty. Re-create it using the random-password instructions in [backend setup](../backend/README.md#first-time-setup), and restrict it with `chmod 600`. Do not display or paste its contents into logs, chat, or issue reports. If PostgreSQL was already initialized with a different password, changing the file alone will not change the credential stored in the database volume. Keep using the existing database credential to preserve data; discard the volume only if you intentionally accept permanent local data loss as described under [destructive local database reset](#destructive-local-database-reset).
-
-### PostgreSQL rejects the password in a second checkout
-
-If logs mention an already-running container such as `authedu-postgres-1`, Compose likely resolved the second checkout to the same project name and reused an existing PostgreSQL volume. The password file is used only when PostgreSQL initializes a new data directory; it cannot change the credential in an existing volume. Do not delete the volume if you need its data. Either reuse the original checkout's password file securely, or run the second checkout with a unique Compose project name and unused host ports as described in [multiple checkouts](#start-and-verify). Avoid `docker compose down --volumes` unless you have confirmed it targets disposable data and accept that it permanently deletes that project's database.
 
 ### A host port is already in use
 
