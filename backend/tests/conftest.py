@@ -44,6 +44,8 @@ def test_database_url(monkeypatch: pytest.MonkeyPatch, postgres_admin_url: URL) 
         database_created = True
         database_url = postgres_admin_url.set(database=database_name)
         monkeypatch.setenv("DATABASE_URL", database_url.render_as_string(hide_password=False))
+        monkeypatch.setenv("AUTHEDU_DEMO_MODE", "1")
+        monkeypatch.setenv("AUTHEDU_DEMO_DATABASE", database_name)
 
         config = Config(str(BACKEND_ROOT / "alembic.ini"))
         config.set_main_option("script_location", str(BACKEND_ROOT / "alembic"))

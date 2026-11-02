@@ -25,6 +25,8 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       DATABASE_PASSWORD_FILE: /run/secrets/postgres_password
+      AUTHEDU_DEMO_MODE: ${AUTHEDU_DEMO_MODE:-}
+      AUTHEDU_DEMO_DATABASE: ${POSTGRES_DB:?Set POSTGRES_DB in the untracked .env file}
     secrets:
       - postgres_password
     ports:
