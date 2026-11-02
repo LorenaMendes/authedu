@@ -73,6 +73,10 @@ docker compose down --volumes
 
 Start again with `docker compose up --build -d`; the backend reapplies migrations on startup. The database, local certificate authority, and certificates are development-only and are not production deployment guidance.
 
+## Automated checks
+
+See the [continuous integration guide](continuous-integration.md) for backend/frontend check commands, isolated database tests, dependency audits, secret scanning, and the future browser-security test extension point. CI does not use this guide's persistent Compose database or local secrets.
+
 ## Standalone frontend limitation
 
 `npm run dev` from `frontend/` remains available for UI work and uses HTTP when `AUTHEDU_DEV_HTTPS` is unset or `0`. Set it to `1` only with valid certificate paths; missing files or invalid setting values fail at startup rather than silently selecting HTTP. That HTTP-only mode is for the health screen and non-cookie development. It is not a fallback for session/cookie modules. The full-stack Compose command above requires HTTPS certificates and fails clearly when TLS is not configured.

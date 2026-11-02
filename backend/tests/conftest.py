@@ -10,16 +10,26 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.pool import NullPool
 from testcontainers.community.postgres import PostgresContainer
+from testcontainers.core.config import testcontainers_config
 
 from alembic import command
 
-POSTGRES_IMAGE = "postgres:18.6-bookworm"
+POSTGRES_IMAGE = (
+    "postgres:18.6-bookworm@"
+    "sha256:5c4783a8cc3f0074912164f94dfa1be4e043438f0f707cf968d7af9a0d31a2c8"
+)
+RYUK_IMAGE = (
+    "testcontainers/ryuk:0.8.1@"
+    "sha256:bf3f74a47dee0acda89aba4b2fc9c7fdcf994a084db02a2d06566f07baae022e"
+)
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture(scope="session")
 def postgres_admin_url() -> Iterator[URL]:
     """Start one disposable PostgreSQL container with an in-memory random password."""
+    # Pin the Docker-socket-enabled cleanup helper as well as the database image.
+    testcontainers_config.ryuk_image = RYUK_IMAGE
     with PostgresContainer(
         POSTGRES_IMAGE,
         username=f"authedu_{uuid4().hex}",
