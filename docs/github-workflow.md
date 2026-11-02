@@ -79,4 +79,4 @@ At each planning pass:
 5. Move newly actionable tasks to Ready.
 6. Keep one implementation task active at a time when working solo.
 
-The [project plan](../project-plan.md) owns goals and release boundaries. GitHub Issues own task scope, dependencies, and execution progress. This local backlog is a publication seed, not a second live issue tracker.
+The [project plan](../.github/project-plan.md) owns goals and release boundaries. GitHub Issues own task scope, dependencies, and execution progress. This local backlog is a publication seed, not a second live issue tracker.

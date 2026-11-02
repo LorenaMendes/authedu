@@ -59,11 +59,13 @@ docker compose ps
 docker compose logs --tail=100 postgres backend frontend
 ```
 
-Stop services but retain database data:
+### Stop services and preserve data
 
 ```sh
 docker compose down
 ```
+
+### Destructive local database reset
 
 To reset the local database, stop services and remove the named data volume. This permanently deletes the local PostgreSQL data and the cached frontend dependency volume:
 
@@ -76,6 +78,40 @@ Start again with `docker compose up --build -d`; the backend reapplies migration
 ## Automated checks
 
 See the [continuous integration guide](continuous-integration.md) for backend/frontend check commands, isolated database tests, dependency audits, secret scanning, and the future browser-security test extension point. CI does not use this guide's persistent Compose database or local secrets.
+
+## Troubleshooting
+
+### Compose says `Set POSTGRES_DB` or reports a missing `.env`
+
+Run Compose from the repository root and create the ignored local settings file with `cp .env.example .env`. Keep the required database name and user entries. Compose reads `.env` from the project directory; exporting a variable in a different shell does not create that file.
+
+### PostgreSQL/backend reports a missing or empty password secret
+
+Confirm `.secrets/postgres_password` exists and is non-empty. Re-create it using the random-password instructions in [backend setup](../backend/README.md#first-time-setup), and restrict it with `chmod 600`. Do not display or paste its contents into logs, chat, or issue reports. If PostgreSQL was already initialized with a different password, changing the file alone will not change the credential stored in the database volume. Keep using the existing database credential to preserve data; discard the volume only if you intentionally accept permanent local data loss as described under [destructive local database reset](#destructive-local-database-reset).
+
+### A host port is already in use
+
+Set an unused host port in the ignored `.env` (`POSTGRES_PORT`, `API_HOST_PORT`, or `FRONTEND_HOST_PORT`) and retry. The frontend host port controls the browser URL; the API host port is only needed for direct loopback diagnostics. `docker compose ps` shows published ports; do not stop unrelated processes without identifying them first.
+
+### Frontend fails because a TLS certificate is missing or invalid
+
+Check that `.certs/localhost.pem` and `.certs/localhost-key.pem` exist, are readable by Docker, and were generated for `localhost`, `127.0.0.1`, and `::1`. Re-run the certificate-generation command from the [setup section](#one-time-local-setup). Keep the key private; do not copy it into the image or commit it. Check ownership before changing permissions if an existing `.certs/` directory was created by another user.
+
+### Browser reports that the local certificate is untrusted
+
+Run `mkcert -install` for the same OS user who runs the browser, restart the browser, and verify it uses that user's trust store. Firefox may use a separate NSS database; on Linux install `libnss3-tools` and follow mkcert's [supported trust-store guidance](https://github.com/FiloSottile/mkcert#supported-root-stores). Trust only your own local development CA. Do not bypass certificate validation or use a browser exception as a production workaround.
+
+### API health check or browser proxy is unavailable
+
+Check `docker compose ps` and `docker compose logs --tail=100 postgres backend frontend`. PostgreSQL must become healthy before the backend migrates and starts; Vite starts after the API health check. Fix the first service that failed and rerun `docker compose up --build -d`. The health route checks API process liveness only; it does not prove database readiness or implement authentication.
+
+### Python or Node commands use the wrong version
+
+Run `python3 --version`, `uv --version`, `node --version`, and `npm --version` and match the pinned values in [the runtime prerequisites](../README.md#prerequisites). For Python, install/select CPython 3.14.10 and let uv install it with `uv python install`; for Node, use `.nvmrc` with `nvm install` and `nvm use`, then install npm 12.2.1 as the frontend guide describes. Do not update lockfiles with an unintended runtime/package manager version.
+
+### CLI reports `No module named 'authedu_api'`
+
+Rebuild and recreate the backend image with `docker compose up --build -d backend`; then retry the documented seed/reset command. The image configures its virtual-environment interpreter on `PATH`.
 
 ## Standalone frontend limitation
 

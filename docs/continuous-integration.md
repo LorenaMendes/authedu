@@ -68,14 +68,13 @@ The history scan covers fetched commits, not ignored/untracked local files. CI c
 
 Every command's nonzero exit status fails its step/job. There are no `continue-on-error` settings, advisory suppressions, or test-failure fallbacks. Job timeouts bound stalled checks; new runs cancel older runs for the same PR/ref.
 
-After publishing this branch through the normal [GitHub workflow](github-workflow.md), complete issue #13's remote verification:
+The initial CI changes were merged in [PR #20](https://github.com/LorenaMendes/authedu/pull/20). Its Checks tab showed the `CI/Backend`, `CI/Frontend`, and `CI/Repository security and workflows` jobs passing; GitGuardian also passed. This confirms a passing pull-request run, not the failure-path or repository-policy checks below:
 
-1. Observe all three jobs passing in the pull request's Checks tab.
-2. In a temporary branch/PR commit, deliberately change an ordinary health/component test assertion so it fails. Confirm the corresponding job fails remotely.
-3. Remove the deliberate failure, push the correction, and confirm the jobs pass again before merging.
-4. Have an administrator select the stable job names as required branch-protection checks if desired. Workflow files alone do not enable branch protection.
+1. In a temporary branch/PR commit, deliberately change an ordinary health/component test assertion so it fails. Confirm the corresponding job fails remotely.
+2. Remove the deliberate failure, push the correction, and confirm the jobs pass again before merging.
+3. Have an administrator select the stable job names as required branch-protection checks if desired. Workflow files alone do not enable branch protection.
 
-Remote success/failure observations must be recorded in the issue; local runs cannot substitute for them. Do not push or change repository settings just to execute this guide without the owner's approval.
+Record remote success/failure observations in the issue; local runs cannot substitute for them. Do not change repository settings without the owner's approval.
 
 ### Local implementation verification (2026-11-01)
 
@@ -84,7 +83,7 @@ Remote success/failure observations must be recorded in the issue; local runs ca
 - Strict pip-audit and npm audit reported no known vulnerabilities at verification time. This is a dated observation, not a permanent guarantee.
 - actionlint/ShellCheck and the redacted full-history Gitleaks scan passed.
 - A temporary ordinary pytest assertion failure returned exit code 1 as required. The probe was outside the repository and was removed; it is not a permanent failing test.
-- Remote passing/failing runs and branch protection are still pending. No commit, push, or GitHub setting change was performed.
+- The passing remote PR run is verified above. Remote deliberate-failure verification and branch-protection configuration remain pending.
 
 ## Later browser security flows
 

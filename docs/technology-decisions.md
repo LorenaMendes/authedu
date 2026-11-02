@@ -1,10 +1,10 @@
 # Foundation technology decisions
 
-**Status:** Backend and frontend health slices merged; PostgreSQL persistence foundation is in progress on issue #10.
+**Status:** Backend/frontend health, PostgreSQL persistence, local HTTPS, deterministic demo data, and initial CI foundations are merged.
 **Reviewed:** 2026-11-01.
 **Owner-approved targets:** FastAPI; PostgreSQL 18 with SQLAlchemy and Alembic; React/Vite; CPython 3.14.10; Node.js 26.13; `uv`; `npm`.
 
-This decision record captures the approved targets and a dated compatibility check. The backend health-check slice has pinned dependencies in `backend/uv.lock`; its endpoint tests and local smoke test passed before merge. The frontend health slice has pinned dependencies in `frontend/package-lock.json`, available/unavailable UI tests, and a Vite proxy to the backend health route. Before issue #10 implementation, PyPI metadata was rechecked: SQLAlchemy 2.1.6 (Python >=3.11), Alembic 1.20.1 (Python >=3.10), Psycopg 3.3.6 (Python >=3.10), and Testcontainers 4.15.0 (Python >=3.10) are compatible with CPython 3.14.10; each lists Python 3.14 support where classifiers are published. The application database layer is being added in issue #10 and its exact resolution is recorded in `backend/uv.lock`.
+This decision record captures the approved targets and a dated compatibility check. The backend health-check slice has pinned dependencies in `backend/uv.lock`; its endpoint tests and local smoke test passed before merge. The frontend health slice has pinned dependencies in `frontend/package-lock.json`, available/unavailable UI tests, and a Vite proxy to the backend health route. Before issue #10 implementation, PyPI metadata was rechecked: SQLAlchemy 2.1.6 (Python >=3.11), Alembic 1.20.1 (Python >=3.10), Psycopg 3.3.6 (Python >=3.10), and Testcontainers 4.15.0 (Python >=3.10) are compatible with CPython 3.14.10; each lists Python 3.14 support where classifiers are published. The database layer and migrations were implemented and merged in issue #10; their exact resolution is recorded in `backend/uv.lock`.
 
 ## Selected runtime and package-manager pins
 

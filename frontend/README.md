@@ -2,6 +2,8 @@
 
 The first frontend slice is a small health screen. It demonstrates browser-to-API connectivity only; there are no login forms, users, credentials, or authentication behavior yet.
 
+For the complete repository walkthrough—including local TLS, PostgreSQL, sample data, CI checks, and troubleshooting—start at the [repository guide](../README.md).
+
 ## Requirements
 
 - Node.js 26.13.0 (pinned in `.nvmrc`)
@@ -25,6 +27,7 @@ npm ci
 npm run lint
 npm test
 npm run build
+npm audit --audit-level=low
 ```
 
 ## Run the frontend by itself
