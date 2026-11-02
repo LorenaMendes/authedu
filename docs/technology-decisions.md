@@ -43,6 +43,16 @@ Backend checks were run on CPython 3.14.10 in issue #2: `uv sync --locked`, `uv 
 
 The project owner explicitly replaced the earlier CPython 3.15.2 preference with **CPython 3.14.10**. FastAPI's current supported-Python classifier and official test matrix include Python 3.14, so this resolves the previously identified support-evidence blocker. Python 3.14 and the other runtime/package-manager targets are supported as of this dated review. Issue #2 verified the backend baseline on the exact Python runtime; issue #10 rechecked the persistence/test dependencies against PyPI metadata, locked their full resolution, and ran PostgreSQL 18.6 migration and constraint tests. Continue rechecking compatibility when adding dependencies rather than treating this record as a permanent guarantee.
 
+## Initial CI tooling (issue #13)
+
+CI preserves the existing runtime and application pins. `pip-audit==2.10.1` is a development-only dependency recorded with its transitive dependencies in the backend lockfile. Official [PyPI metadata](https://pypi.org/project/pip-audit/2.10.1/) declares Python >=3.10; the locked install and audit are verified on CPython 3.14.10. npm's built-in audit covers the frontend lockfile, without another application dependency.
+
+The workflow pins checkout v6.1.0 (`d23441a48e516b6c34aea4fa41551a30e30af803`), setup-node v6.5.0 (`249970729cb0ef3589644e2896645e5dc5ba9c38`), and setup-uv v7.6.0 (`37802adc94f370d6bfd71619e3f0bf239e1f3b78`) to their official release commits. These actions run on Node 24, independently of the application's Node 26 runtime; GitHub-hosted Ubuntu 24.04 runners support that action runtime. See the official [checkout](https://github.com/actions/checkout), [setup-node](https://github.com/actions/setup-node), and [setup-uv](https://github.com/astral-sh/setup-uv) documentation.
+
+Gitleaks 8.30.1 and actionlint 1.7.12 use the official maintainers' Docker Hub images, pinned by digest in the workflow. Release metadata and local image version commands verified the selections. See [Gitleaks releases](https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1), [actionlint releases](https://github.com/rhysd/actionlint/releases/tag/v1.7.12), and the [CI guide](continuous-integration.md). Scanners require neither hosted credentials nor an application runtime dependency. Upgrade action commits, image digests, and audit tooling deliberately together with verification; do not replace them with floating tags.
+
+The test fixture additionally pins the existing PostgreSQL 18.6 Bookworm image and Testcontainers' existing Ryuk 0.8.1 cleanup helper by their verified Docker image digests. Their version selections are unchanged; digest pins prevent mutable release tags from changing CI execution, particularly for the Docker-socket-enabled cleanup helper. The persistent local Compose service is unchanged.
+
 ## Baseline rationale
 
 This stack matches the product plan's intended educational architecture: FastAPI for a readable Python API; PostgreSQL with SQLAlchemy and Alembic for persistent, migration-backed state; React/Vite for a small browser demo; `uv` and `npm` for reproducible language-specific dependency workflows. Exact pins make the initial foundation repeatable, while explicit support evidence prevents “latest” from becoming an untested compatibility assumption.

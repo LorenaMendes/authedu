@@ -55,6 +55,8 @@ uv run --locked pytest
 
 Persistence tests require Docker and launch PostgreSQL 18.6 in a disposable Testcontainers instance. The fixture generates a process-local random password, creates a uniquely named database per test, applies the migrations, and drops the test database and container in teardown. Tests never read the local `.env`, connect to the local Compose service, or use developer data.
 
+Pull requests run these checks and a strict audit of locked dependencies. See the [CI guide](../docs/continuous-integration.md) for identical local audit commands, failure behavior, and remote verification.
+
 ## Fictional demo records
 
 With the full Compose stack running and `AUTHEDU_DEMO_MODE=1` added to the local, ignored `.env`, add the same fictional records used by the learner tests:
