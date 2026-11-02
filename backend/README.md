@@ -55,6 +55,26 @@ uv run --locked pytest
 
 Persistence tests require Docker and launch PostgreSQL 18.6 in a disposable Testcontainers instance. The fixture generates a process-local random password, creates a uniquely named database per test, applies the migrations, and drops the test database and container in teardown. Tests never read the local `.env`, connect to the local Compose service, or use developer data.
 
+## Fictional demo records
+
+With the full Compose stack running and `AUTHEDU_DEMO_MODE=1` added to the local, ignored `.env`, add the same fictional records used by the learner tests:
+
+```sh
+docker compose exec backend python -m authedu_api.demo_data seed
+```
+
+The command is idempotent: running it again does not duplicate or overwrite the demo records. It creates two fictional users with distinct owned notes. They have no password hashes and cannot log in; authentication is not implemented yet.
+
+The container puts `/opt/venv/bin` first on `PATH`, so `python` uses the installed app and dependencies. Each seed/reset process builds its database URL from the mounted password file and Compose settings when `DATABASE_URL` is absent: environment changes made by the API entrypoint are not inherited by a later `docker compose exec`. If an older image reports `No module named 'authedu_api'`, rebuild and recreate it with `docker compose up --build -d backend` before retrying.
+
+Remove only these demo records (not the whole database) with an explicit confirmation:
+
+```sh
+docker compose exec backend python -m authedu_api.demo_data reset --confirm-demo-reset
+```
+
+Reset requires the explicit local demo-mode setting, a local Compose/loopback PostgreSQL host, an exact configured demo database name, and the confirmation flag. It refuses to delete records if the deterministic demo IDs conflict with another identity/owner or a demo user owns an extra non-demo note. Reset removes the seeded demo rows even if a learner edited their contents. Seed/reset operations serialize with a transaction-scoped PostgreSQL advisory lock. These are safety guards for local education—not a substitute for backups or production-grade environment isolation. Reset never uses database `DROP` operations.
+
 ## Start the full stack
 
 For the recommended API, UI, PostgreSQL, and local HTTPS workflow, follow the repository's [local development guide](../docs/local-development.md). It starts all services in Compose and waits for database and API readiness.

@@ -2,6 +2,7 @@
 
 import os
 from collections.abc import Generator
+from pathlib import Path
 
 from fastapi import HTTPException, Request
 from sqlalchemy import create_engine
@@ -27,6 +28,31 @@ def database_url_from_environment(*, required: bool = True) -> URL | None:
     if database_url.drivername != "postgresql+psycopg":
         raise RuntimeError("DATABASE_URL must use the postgresql+psycopg driver.")
     return database_url
+
+
+def database_url_from_secret_file() -> URL:
+    """Build the Compose database URL in each process without logging its secret."""
+    password_file = Path(os.environ.get("DATABASE_PASSWORD_FILE", ""))
+    try:
+        password = password_file.read_text(encoding="utf-8").rstrip("\r\n")
+    except (OSError, UnicodeError):
+        raise RuntimeError(
+            "Database password secret file is unavailable; check Compose secrets."
+        ) from None
+    if not password:
+        raise RuntimeError("Database password secret file is empty.")
+
+    try:
+        return URL.create(
+            "postgresql+psycopg",
+            username=os.environ["POSTGRES_USER"],
+            password=password,
+            host=os.environ.get("POSTGRES_HOST", "postgres"),
+            port=int(os.environ.get("POSTGRES_PORT", "5432")),
+            database=os.environ["POSTGRES_DB"],
+        )
+    except (KeyError, ValueError):
+        raise RuntimeError("Database connection settings are incomplete or invalid.") from None
 
 
 def create_database_engine(
