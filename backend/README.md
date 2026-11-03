@@ -1,6 +1,6 @@
 # AuthEdu backend
 
-The API foundation includes a PostgreSQL-backed persistence layer and versioned schema. It intentionally does not implement registration, login, password hashing, or note endpoints yet. `GET /health` reports process liveness and does not require PostgreSQL.
+The API foundation includes a PostgreSQL-backed persistence layer, versioned schema, and an initial registration endpoint. Login, password verification, sessions, authorization, and note endpoints are not implemented yet. `GET /health` reports process liveness and does not require PostgreSQL.
 
 ## Requirements
 
@@ -56,6 +56,14 @@ uv run --locked pytest
 Persistence tests require Docker and launch PostgreSQL 18.6 in a disposable Testcontainers instance. The fixture generates a process-local random password, creates a uniquely named database per test, applies the migrations, and drops the test database and container in teardown. Tests never read the local `.env`, connect to the local Compose service, or use developer data.
 
 Pull requests run these checks and a strict audit of locked dependencies. See the [CI guide](../docs/continuous-integration.md) for identical local audit commands, failure behavior, and remote verification.
+
+## Registration foundation
+
+`POST /register` accepts a syntactically valid email and a password between 15 and 128 characters. Email input is trimmed and lowercased before storage, matching the database's case-insensitive uniqueness rule. Passwords are hashed with `argon2-cffi`'s high-level Argon2id `PasswordHasher`; salts and encoded hash parameters are managed by the library. Existing users created by the demo seed still have `password_hash = NULL` and cannot log in.
+
+Duplicate and new email submissions receive the same `200` response so the endpoint does not explicitly disclose account existence. The server hashes before its atomic database insert on either path, which reduces—but cannot eliminate—timing differences. Invalid requests receive a generic `422` response that does not echo the submitted password.
+
+Registration is limited to five attempts per direct peer address per ten-minute window using an in-memory, per-process limiter. Invalid payloads count too; throttling runs before request validation and before password hashing. To bound memory, the limiter tracks at most 10,000 client keys and evicts the least-recently-used key when full, so high client churn can reset an evicted client's quota. In the Compose setup, browser requests arrive through the shared Vite proxy, so they may all count against that proxy's address. The limiter resets on process restart, is not shared across workers or replicas, and can be evaded by distributed clients. The endpoint trusts the direct peer address and does not use forwarded-IP headers. This limiter and the registration flow are not production-ready defenses; a deployed service needs a correctly configured trusted proxy and shared, abuse-resistant rate-limit storage. Account verification email, login, password recovery, and authentication are not implemented.
 
 ## Fictional demo records
 
