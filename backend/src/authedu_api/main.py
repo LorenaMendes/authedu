@@ -3,14 +3,21 @@
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 
 from authedu_api.database import (
     create_database_engine,
     create_session_factory,
     database_url_from_environment,
+    get_database_session,
 )
+from authedu_api.registration import enforce_registration_rate_limit, register_user
+from authedu_api.schemas import RegistrationRequest, RegistrationResponse
 
 
 @asynccontextmanager
@@ -36,7 +43,55 @@ app = FastAPI(
 )
 
 
+@app.middleware("http")
+async def limit_registration_requests(request: Request, call_next):
+    """Count registration attempts before FastAPI parses and validates the body."""
+    if request.method == "POST" and request.url.path == "/register":
+        client_key = request.client.host if request.client is not None else "unknown"
+        try:
+            enforce_registration_rate_limit(client_key)
+        except HTTPException as error:
+            return JSONResponse(
+                status_code=error.status_code,
+                content={"detail": error.detail},
+                headers=error.headers,
+            )
+    return await call_next(request)
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_request_validation_error(
+    request: Request, error: RequestValidationError
+) -> Response:
+    """Avoid reflecting passwords in FastAPI's default validation-error payload."""
+    if request.url.path == "/register":
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            content={"detail": "Invalid registration request."},
+        )
+    return await request_validation_exception_handler(request, error)
+
+
 @app.get("/health", tags=["health"])
 def health() -> dict[str, str]:
     """Report that the API process is responsive; this does not check dependencies."""
     return {"status": "ok"}
+
+
+@app.post(
+    "/register",
+    tags=["users"],
+    response_model=RegistrationResponse,
+)
+def register(
+    payload: RegistrationRequest,
+    request: Request,
+    session: Session = Depends(get_database_session),
+) -> RegistrationResponse:
+    """Accept registration without revealing whether the email already exists."""
+    register_user(
+        session,
+        email=str(payload.email),
+        password=payload.password.get_secret_value(),
+    )
+    return RegistrationResponse(message="Registration request accepted.")
