@@ -6,12 +6,13 @@ AuthEdu is an educational reference for learning how authentication and authoriz
 
 - A React/Vite health screen makes a same-origin request to the FastAPI health endpoint.
 - PostgreSQL stores the initial `users` and `notes` schema; Alembic migrations run when the Compose backend starts.
+- `POST /register` validates an email/password request and stores an Argon2id password hash; duplicate registrations receive a generic response.
 - A guarded CLI creates and selectively removes repeatable fictional demo users and their notes.
 - Backend/frontend checks, dependency audits, workflow validation, and secret scanning run in GitHub Actions.
 
 ## What is not implemented yet
 
-There is **no registration, login, password hashing, session or JWT authentication, authenticated notes API, role-based authorization, or admin UI**. The demo users have no password hashes and cannot sign in. The health endpoint only reports that the API process responds; it does not prove that the database or authentication is working. See the [project plan](.github/project-plan.md) for what is planned. Do not treat the current app as a security product or use real personal data or credentials in its demo database.
+There is **no login, password verification, email verification, session or JWT authentication, authenticated notes API, role-based authorization, or admin UI**. Registration is an initial educational slice, not a complete account system; its in-memory rate limit is not suitable for production or multiple workers. The fictional demo users have no password hashes and cannot sign in. The health endpoint only reports that the API process responds; it does not prove that the database or authentication is working. See the [project plan](.github/project-plan.md) for what is planned. Do not treat the current app as a security product or use real personal data or credentials in its demo database.
 
 ## Start from a fresh checkout
 
@@ -47,7 +48,7 @@ mkcert -install
 mkdir -p .certs && chmod 700 .certs
 (umask 077; mkcert -cert-file .certs/localhost.pem -key-file .certs/localhost-key.pem localhost 127.0.0.1 ::1) &&
 chmod 600 .certs/localhost-key.pem
-```
+``` 
 
 The local certificate authority changes your user trust stores; never install it on a shared or production machine. The private key remains on your computer and is mounted read-only into the local frontend container.
 
