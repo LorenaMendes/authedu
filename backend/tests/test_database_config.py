@@ -31,7 +31,8 @@ def test_demo_command_reads_compose_secret_without_database_url(compose_settings
     assert (url.username, url.host, url.port, url.database) == (
         "authedu", "postgres", 5432, "authedu"
     )
-    assert url.password == password
+    if url.password != password:
+        raise AssertionError("Compose database password was not read from the secret file.")
 
 
 @pytest.mark.parametrize("contents", [None, "", "\n"])
@@ -43,7 +44,8 @@ def test_missing_or_empty_secret_fails_safely(compose_settings, contents):
         secret_file.write_text(contents, encoding="utf-8")
     with pytest.raises(RuntimeError, match="Database password secret file") as error:
         database_url_from_secret_file()
-    assert password not in str(error.value)
+    if password in str(error.value):
+        raise AssertionError("Database configuration error exposed the secret password.")
     assert str(secret_file) not in str(error.value)
 
 
@@ -52,7 +54,8 @@ def test_invalid_port_fails_without_exposing_secret(compose_settings, monkeypatc
     monkeypatch.setenv("POSTGRES_PORT", password)
     with pytest.raises(RuntimeError, match="incomplete or invalid") as error:
         database_url_from_secret_file()
-    assert password not in str(error.value)
+    if password in str(error.value):
+        raise AssertionError("Database configuration error exposed the secret password.")
 
 
 def test_explicit_invalid_url_does_not_fall_back_to_compose(compose_settings, monkeypatch):

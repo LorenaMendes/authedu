@@ -1,4 +1,4 @@
-"""Minimal FastAPI application for the AuthEdu foundation."""
+"""FastAPI application composition for AuthEdu API routes."""
 
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
@@ -18,6 +18,7 @@ from authedu_api.database import (
 )
 from authedu_api.registration import enforce_registration_rate_limit, register_user
 from authedu_api.schemas import RegistrationRequest, RegistrationResponse
+from authedu_api.session_routes import router as session_router
 
 
 @asynccontextmanager
@@ -41,6 +42,7 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+app.include_router(session_router)
 
 
 @app.middleware("http")
@@ -64,10 +66,15 @@ async def handle_request_validation_error(
     request: Request, error: RequestValidationError
 ) -> Response:
     """Avoid reflecting passwords in FastAPI's default validation-error payload."""
-    if request.url.path == "/register":
+    if request.url.path in {"/register", "/login"}:
+        detail = (
+            "Invalid registration request."
+            if request.url.path == "/register"
+            else "Invalid login request."
+        )
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            content={"detail": "Invalid registration request."},
+            content={"detail": detail},
         )
     return await request_validation_exception_handler(request, error)
 

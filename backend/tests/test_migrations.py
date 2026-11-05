@@ -51,6 +51,30 @@ def test_updated_at_migration_backfills_and_reverses(test_database_url) -> None:
     command.upgrade(config, "head")
     engine = create_engine(test_database_url, poolclass=NullPool)
     try:
+        inspector = inspect(engine)
+        assert "auth_sessions" in inspector.get_table_names()
+        session_columns = {column["name"] for column in inspector.get_columns("auth_sessions")}
+        assert session_columns == {
+            "id",
+            "user_id",
+            "token_hash",
+            "created_at",
+            "last_seen_at",
+            "expires_at",
+            "idle_expires_at",
+            "revoked_at",
+        }
+        assert any(
+            constraint["name"] == "uq_auth_sessions_token_hash"
+            and constraint["column_names"] == ["token_hash"]
+            for constraint in inspector.get_unique_constraints("auth_sessions")
+        )
+        assert any(
+            foreign_key["constrained_columns"] == ["user_id"]
+            and foreign_key["referred_table"] == "users"
+            and foreign_key["options"].get("ondelete") == "CASCADE"
+            for foreign_key in inspector.get_foreign_keys("auth_sessions")
+        )
         note_columns = inspect(engine).get_columns("notes")
         columns = {column["name"] for column in note_columns}
         assert "updated_at" in columns
@@ -69,6 +93,7 @@ def test_updated_at_migration_backfills_and_reverses(test_database_url) -> None:
     command.downgrade(config, "0001_initial")
     engine = create_engine(test_database_url, poolclass=NullPool)
     try:
+        assert "auth_sessions" not in inspect(engine).get_table_names()
         columns = {column["name"] for column in inspect(engine).get_columns("notes")}
         assert "updated_at" not in columns
         with engine.connect() as connection:

@@ -1,6 +1,6 @@
 # Local development environment
 
-The supported full-stack development path uses Docker Compose for PostgreSQL, the FastAPI service, and the Vite development server. Open the frontend over local HTTPS; its `/api` proxy forwards requests to the backend over the private Compose network, so browser requests remain same-origin. This provides a realistic secure-cookie origin for later modules without adding authentication now.
+The supported full-stack development path uses Docker Compose for PostgreSQL, the FastAPI service, and the Vite development server. Open the frontend over local HTTPS; its `/api` proxy forwards requests to the backend over the private Compose network, so browser requests remain same-origin. Session login, current-user, and logout routes are available through this API proxy after the session migration and required secrets are configured.
 
 ## Prerequisites
 
@@ -16,10 +16,12 @@ The supported full-stack development path uses Docker Compose for PostgreSQL, th
    cp .env.example .env
    mkdir -p .secrets
    python3 -c 'import secrets; print(secrets.token_urlsafe(32))' > .secrets/postgres_password
+   python3 -c 'import secrets; print(secrets.token_urlsafe(48))' > .secrets/csrf_signing_key
    chmod 600 .secrets/postgres_password
+   chmod 600 .secrets/csrf_signing_key
    ```
 
-   `.env` contains only the database name/user, optional host ports (`POSTGRES_PORT`, `API_HOST_PORT`, `FRONTEND_HOST_PORT`), and the local-only `AUTHEDU_DEMO_MODE=1` switch for guarded sample-data commands. The password file is ignored by Git and mounted read-only into the database and backend containers. Do not put credentials in the tracked Compose file or `VITE_` frontend variables; Vite embeds those variables in browser-delivered assets.
+   `.env` contains the database name/user, optional host ports (`POSTGRES_PORT`, `API_HOST_PORT`, `FRONTEND_HOST_PORT`), `AUTHEDU_PUBLIC_ORIGIN` (the exact browser origin, including scheme and port), and the local-only `AUTHEDU_DEMO_MODE=1` switch for guarded sample-data commands. If you change `FRONTEND_HOST_PORT`, update `AUTHEDU_PUBLIC_ORIGIN` to match. Both secret files are ignored by Git and mounted read-only into their required containers. The CSRF key is 48 random bytes encoded as URL-safe text; all backend replicas in a deployment must use the same key. Do not put credentials in the tracked Compose file or `VITE_` frontend variables; Vite embeds those variables in browser-delivered assets.
 2. Install and trust the local certificate authority for your operating system and supported browsers:
 
    ```sh
@@ -51,6 +53,73 @@ docker compose up --build -d
 Compose waits for PostgreSQL's `pg_isready` health check before starting the API. The API entrypoint constructs its SQLAlchemy URL from the mounted password file, applies `alembic upgrade head`, then starts Uvicorn. Compose waits for the API `/health` endpoint before starting Vite with HTTPS enabled. If a database, secret, or certificate is missing, the dependent service fails rather than silently switching to an insecure or unauthenticated configuration.
 
 Open <https://localhost:5173> (or the configured `FRONTEND_HOST_PORT`). Accept only a certificate issued by the locally installed mkcert CA. The browser requests `/api/health`; Vite proxies it to the API's `/health` endpoint, with no cross-origin browser request. For local diagnostics, the API is also bound to loopback at <http://127.0.0.1:8000> (or the configured `API_HOST_PORT`); do not use that HTTP origin for cookie-authenticated browser work.
+
+### Manually test session routes with curl
+
+Start the full Compose stack and use a **new email address**. The commands below prompt for credentials without echoing the password, keep the HttpOnly session cookie in a private temporary cookie jar, and keep CSRF proofs in shell memory. They use the local HTTPS Vite proxy so the request `Origin` matches `AUTHEDU_PUBLIC_ORIGIN`; do not add `curl -k` or send requests over the backend's loopback HTTP port.
+
+```sh
+set -eu
+read -r -p 'New test email: ' AUTHEDU_TEST_EMAIL
+read -r -s -p 'Test password (15+ characters): ' AUTHEDU_TEST_PASSWORD
+printf '\n'
+export AUTHEDU_TEST_EMAIL
+
+ORIGIN='https://localhost:5173'
+API="$ORIGIN/api"
+umask 077
+COOKIE_DIR=$(mktemp -d)
+chmod 700 "$COOKIE_DIR"
+COOKIE_JAR="$COOKIE_DIR/cookies.txt"
+trap 'rm -rf "$COOKIE_DIR"; unset AUTHEDU_TEST_PASSWORD AUTHEDU_TEST_EMAIL' EXIT
+
+# Register a new account. The password is streamed as JSON, not placed in curl arguments.
+AUTHEDU_TEST_PASSWORD="$AUTHEDU_TEST_PASSWORD" \
+   python3 -c 'import json, os; print(json.dumps({"email": os.environ["AUTHEDU_TEST_EMAIL"], "password": os.environ["AUTHEDU_TEST_PASSWORD"]}))' \
+   | curl --silent --show-error --fail-with-body \
+         -H 'Content-Type: application/json' --data-binary @- "$API/register"
+printf '\n'
+
+# Log in: curl saves the Secure, HttpOnly cookie to the private jar.
+LOGIN_RESPONSE=$(AUTHEDU_TEST_PASSWORD="$AUTHEDU_TEST_PASSWORD" \
+   python3 -c 'import json, os; print(json.dumps({"email": os.environ["AUTHEDU_TEST_EMAIL"], "password": os.environ["AUTHEDU_TEST_PASSWORD"]}))' \
+   | curl --silent --show-error --fail-with-body \
+         -H "Origin: $ORIGIN" -H 'Content-Type: application/json' \
+         --cookie-jar "$COOKIE_JAR" --data-binary @- "$API/login")
+chmod 600 "$COOKIE_JAR"
+CSRF_TOKEN=$(printf '%s' "$LOGIN_RESPONSE" \
+   | python3 -c 'import json, sys; print(json.load(sys.stdin)["csrf_token"])')
+unset LOGIN_RESPONSE
+printf 'Login succeeded; session cookie saved privately.\n'
+
+# Confirm the authenticated principal and refresh the CSRF proof after a page reload.
+ME_RESPONSE=$(curl --silent --show-error --fail-with-body \
+   --cookie "$COOKIE_JAR" "$API/me")
+CSRF_TOKEN=$(printf '%s' "$ME_RESPONSE" \
+   | python3 -c 'import json, sys; print(json.load(sys.stdin)["csrf_token"])')
+unset ME_RESPONSE
+printf 'Current session is valid.\n'
+
+# Logout requires both the same Origin and the session-bound CSRF proof.
+printf 'header = "Origin: %s"\nheader = "X-CSRF-Token: %s"\n' \
+   "$ORIGIN" "$CSRF_TOKEN" > "$COOKIE_DIR/logout-curl.conf"
+chmod 600 "$COOKIE_DIR/logout-curl.conf"
+curl --silent --show-error --fail-with-body --output /dev/null \
+   --config "$COOKIE_DIR/logout-curl.conf" \
+   --cookie "$COOKIE_JAR" --cookie-jar "$COOKIE_JAR" \
+   -X POST "$API/logout"
+rm -f "$COOKIE_DIR/logout-curl.conf"
+unset CSRF_TOKEN
+printf 'Logout succeeded and the cookie jar was cleared.\n'
+
+# The old cookie must no longer authenticate; expected status is 401.
+STATUS=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+   --cookie "$COOKIE_JAR" "$API/me")
+test "$STATUS" = '401'
+printf 'Post-logout /me returned the expected 401.\n'
+```
+
+The browser session cookie is a credential; do not print, copy, or commit the cookie jar. The CSRF proof is not an identity credential, but keep it out of logs and URLs; the logout header is passed through a mode-600 temporary curl config instead of a command-line argument. The password is not exported to curl and is streamed to it through stdin. The temporary directory and entered values are removed from the current shell when the script exits. This is a local smoke test, not production deployment guidance.
 
 With the Compose stack running and `AUTHEDU_DEMO_MODE=1` added to the local `.env`, create the repeatable fictional sample users and their notes with `docker compose exec backend python -m authedu_api.demo_data seed`. Run it again safely to ensure any missing fixture rows are present. To remove only those seeded records, use `docker compose exec backend python -m authedu_api.demo_data reset --confirm-demo-reset`. Reset checks the demo-mode flag, configured database name, and local database host, and requires the explicit confirmation flag; it refuses when demo IDs conflict with other identities/owners or when a demo user owns extra notes. Reset intentionally deletes the seeded demo rows even if their contents were edited. These commands are serialized against each other; the safety checks are for local learning, not production isolation. The sample users have no passwords and cannot log in until authentication is implemented.
 
@@ -90,6 +159,14 @@ Run Compose from the repository root and create the ignored local settings file 
 ### PostgreSQL/backend reports a missing or empty password secret
 
 Confirm `.secrets/postgres_password` exists and is non-empty. Re-create it using the random-password instructions in [backend setup](../backend/README.md#first-time-setup), and restrict it with `chmod 600`. Do not display or paste its contents into logs, chat, or issue reports. If PostgreSQL was already initialized with a different password, changing the file alone will not change the credential stored in the database volume. Keep using the existing database credential to preserve data; discard the volume only if you intentionally accept permanent local data loss as described under [destructive local database reset](#destructive-local-database-reset).
+
+### Backend reports a missing or invalid CSRF signing secret
+
+Confirm `.secrets/csrf_signing_key` exists, contains at least 32 bytes, and is readable by Docker. Create it using the random-key command in [one-time local setup](#one-time-local-setup), then restrict it with `chmod 600`. Never display or commit the key. If the key changes, all previously issued CSRF proofs become invalid; restart the backend after correcting the key configuration.
+
+### Login rejects the request origin
+
+`AUTHEDU_PUBLIC_ORIGIN` must exactly match the browser origin, including `https://` and the frontend port—for the default local setup, `https://localhost:5173`. If you change `FRONTEND_HOST_PORT`, update the origin in `.env`; do not add a trailing slash or derive this trust value from an incoming `Host` header.
 
 ### A host port is already in use
 

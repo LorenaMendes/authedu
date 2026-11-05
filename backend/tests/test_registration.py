@@ -1,10 +1,10 @@
 """Registration validation, credential hashing, and enumeration resistance."""
 
 import asyncio
+import secrets
 from collections import Counter
 
 import pytest
-from argon2 import PasswordHasher
 from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy import func, select
@@ -38,7 +38,7 @@ def test_registration_normalizes_email_and_persists_only_argon2_hash(
     monkeypatch.setattr(
         registration, "_registration_rate_limiter", registration.RegistrationRateLimiter()
     )
-    password = "correct horse battery staple"
+    password = secrets.token_urlsafe(24)
 
     (response,) = asyncio.run(
         _post_registrations(
@@ -48,17 +48,20 @@ def test_registration_normalizes_email_and_persists_only_argon2_hash(
 
     assert response.status_code == 200
     assert response.json() == {"message": "Registration request accepted."}
-    assert password not in response.text
+    if password in response.text:
+        raise AssertionError("Registration response included the submitted password.")
 
     engine = create_database_engine(test_database_url)
     try:
         with Session(engine) as session:
             user = session.scalar(select(User).where(User.email == "learner@example.com"))
             assert user is not None
-            assert user.password_hash is not None
-            assert user.password_hash != password
-            assert user.password_hash.startswith("$argon2id$")
-            assert PasswordHasher().verify(user.password_hash, password)
+            if not user.password_hash or not user.password_hash.startswith("$argon2id$"):
+                raise AssertionError("Registration did not persist an Argon2id password hash.")
+            if user.password_hash == password:
+                raise AssertionError("Registration persisted the plaintext password.")
+            if not registration.verify_password(password, user.password_hash):
+                raise AssertionError("Stored password hash did not verify the submitted password.")
     finally:
         engine.dispose()
 
@@ -168,7 +171,8 @@ def test_invalid_email_and_password_lengths_are_rejected(
     )
 
     assert response.status_code == 422
-    assert password not in response.text
+    if password in response.text:
+        raise AssertionError("Validation response included the submitted password.")
     assert hash_calls == 0
 
 

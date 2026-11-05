@@ -1,6 +1,6 @@
 # AuthEdu backend
 
-The API foundation includes a PostgreSQL-backed persistence layer, versioned schema, and an initial registration endpoint. Login, password verification, sessions, authorization, and note endpoints are not implemented yet. `GET /health` reports process liveness and does not require PostgreSQL.
+The API includes a PostgreSQL-backed persistence layer, versioned schema, registration, and mounted cookie-backed session login/current-user/logout endpoints. Route and app-level integration tests exercise the session flow. Authorization and note endpoints are not implemented yet. `GET /health` reports process liveness and does not require PostgreSQL.
 
 ## Requirements
 
@@ -63,7 +63,7 @@ Pull requests run these checks and a strict audit of locked dependencies. See th
 
 Duplicate and new email submissions receive the same `200` response so the endpoint does not explicitly disclose account existence. The server hashes before its atomic database insert on either path, which reduces—but cannot eliminate—timing differences. Invalid requests receive a generic `422` response that does not echo the submitted password.
 
-Registration is limited to five attempts per direct peer address per ten-minute window using an in-memory, per-process limiter. Invalid payloads count too; throttling runs before request validation and before password hashing. To bound memory, the limiter tracks at most 10,000 client keys and evicts the least-recently-used key when full, so high client churn can reset an evicted client's quota. In the Compose setup, browser requests arrive through the shared Vite proxy, so they may all count against that proxy's address. The limiter resets on process restart, is not shared across workers or replicas, and can be evaded by distributed clients. The endpoint trusts the direct peer address and does not use forwarded-IP headers. This limiter and the registration flow are not production-ready defenses; a deployed service needs a correctly configured trusted proxy and shared, abuse-resistant rate-limit storage. Account verification email, login, password recovery, and authentication are not implemented.
+Registration is limited to five attempts per direct peer address per ten-minute window using an in-memory, per-process limiter. Invalid payloads count too; throttling runs before request validation and before password hashing. To bound memory, the limiter tracks at most 10,000 client keys and evicts the least-recently-used key when full, so high client churn can reset an evicted client's quota. In the Compose setup, browser requests arrive through the shared Vite proxy, so they may all count against that proxy's address. The limiter resets on process restart, is not shared across workers or replicas, and can be evaded by distributed clients. The endpoint trusts the direct peer address and does not use forwarded-IP headers. Login also has a process-local per-IP limiter. These are educational safeguards, not production-ready defenses; deployment needs correctly configured trusted proxy handling and shared, abuse-resistant rate-limit storage. Account verification email, password recovery, and authorization are not implemented.
 
 ## Fictional demo records
 
@@ -73,7 +73,7 @@ With the full Compose stack running and `AUTHEDU_DEMO_MODE=1` added to the local
 docker compose exec backend python -m authedu_api.demo_data seed
 ```
 
-The command is idempotent: running it again does not duplicate or overwrite the demo records. It creates two fictional users with distinct owned notes. They have no password hashes and cannot log in; authentication is not implemented yet.
+The command is idempotent: running it again does not duplicate or overwrite the demo records. It creates two fictional users with distinct owned notes. They have no password hashes and cannot log in.
 
 The container puts `/opt/venv/bin` first on `PATH`, so `python` uses the installed app and dependencies. Each seed/reset process builds its database URL from the mounted password file and Compose settings when `DATABASE_URL` is absent: environment changes made by the API entrypoint are not inherited by a later `docker compose exec`. If an older image reports `No module named 'authedu_api'`, rebuild and recreate it with `docker compose up --build -d backend` before retrying.
 
@@ -107,6 +107,6 @@ Expected response: `{"status":"ok"}`. The app creates its database engine during
 
 ## Data model and security boundary
 
-The initial reversible migration creates `users` and `notes`; the next migration adds a timezone-aware `notes.updated_at` column. PostgreSQL initializes it for new notes and for existing rows when upgrading. SQLAlchemy refreshes it when an ORM update changes a note; direct SQL updates do not automatically refresh it. User email identity is protected by a database-enforced unique index over `lower(email)`; note ownership is a non-null foreign key with cascading deletion. `password_hash` is nullable until a later issue adds authentication and is reserved exclusively for encoded password hashes—never plaintext or placeholder credentials. The `UserRead` API schema explicitly lists public fields and excludes persistence-only fields. No registration, login, or note API is part of this issue.
+The reversible migrations create `users`, `notes`, and `auth_sessions`, and add a timezone-aware `notes.updated_at` column. PostgreSQL initializes it for new notes and for existing rows when upgrading. SQLAlchemy refreshes it when an ORM update changes a note; direct SQL updates do not automatically refresh it. User email identity is protected by a database-enforced unique index over `lower(email)`; note ownership is a non-null foreign key with cascading deletion. New registrations require an Argon2id password hash; nullable hashes remain only for fictional demo users that cannot authenticate. Session records store only a digest of a random opaque identifier. The `UserRead` API schema explicitly lists public fields and excludes persistence-only fields. Registration and session endpoints are implemented; note endpoints and ownership authorization remain future work.
 
 See [the technology decision record](../docs/technology-decisions.md) for stack compatibility details. This educational reference is not a production identity provider.
