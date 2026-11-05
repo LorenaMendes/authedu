@@ -7,12 +7,13 @@ AuthEdu is an educational reference for learning how authentication and authoriz
 - A React/Vite health screen makes a same-origin request to the FastAPI health endpoint.
 - PostgreSQL stores the initial `users` and `notes` schema; Alembic migrations run when the Compose backend starts.
 - `POST /register` validates an email/password request and stores an Argon2id password hash; duplicate registrations receive a generic response.
+- The HTTPS API supports cookie-backed login, current-session lookup, and CSRF-protected logout; session identifiers are opaque and stored only as digests.
 - A guarded CLI creates and selectively removes repeatable fictional demo users and their notes.
 - Backend/frontend checks, dependency audits, workflow validation, and secret scanning run in GitHub Actions.
 
 ## What is not implemented yet
 
-There is **no login, password verification, email verification, session or JWT authentication, authenticated notes API, role-based authorization, or admin UI**. Registration is an initial educational slice, not a complete account system; its in-memory rate limit is not suitable for production or multiple workers. The fictional demo users have no password hashes and cannot sign in. The health endpoint only reports that the API process responds; it does not prove that the database or authentication is working. See the [project plan](.github/project-plan.md) for what is planned. Do not treat the current app as a security product or use real personal data or credentials in its demo database.
+Email verification, password recovery, JWT authentication, authenticated notes APIs, role-based authorization, and an admin UI are not implemented yet. Session login depends on configured local HTTPS, `AUTHEDU_PUBLIC_ORIGIN`, and a private CSRF signing key; its in-memory rate limiter is an educational safeguard, not suitable for production, multiple workers, or distributed deployments. The fictional demo users have no password hashes and cannot sign in. The health endpoint only reports that the API process responds; it does not prove that the database or authentication is working. See the [project plan](.github/project-plan.md) for what is planned. Do not treat the current app as a security product or use real personal data or credentials in its demo database.
 
 ## Start from a fresh checkout
 
@@ -38,7 +39,9 @@ From the repository root, copy the example and create a private database-passwor
 cp .env.example .env
 mkdir -p .secrets
 python3 -c 'import secrets; print(secrets.token_urlsafe(32))' > .secrets/postgres_password
+python3 -c 'import secrets; print(secrets.token_urlsafe(48))' > .secrets/csrf_signing_key
 chmod 600 .secrets/postgres_password
+chmod 600 .secrets/csrf_signing_key
 ```
 
 Install/trust mkcert's local certificate authority once for this computer and browser, then create a certificate for the exact local hosts:
@@ -58,7 +61,7 @@ The local certificate authority changes your user trust stores; never install it
 docker compose up --build -d
 ```
 
-Compose waits for PostgreSQL and API health before starting the HTTPS frontend. Open <https://localhost:5173> and accept only a certificate issued by your locally installed mkcert CA. The browser's `/api/health` request is proxied to the API on the private Compose network. Verify the API directly if useful:
+Compose waits for PostgreSQL and API health before starting the HTTPS frontend. Open <https://localhost:5173> and accept only a certificate issued by your locally installed mkcert CA. The browser's `/api/health` request is proxied to the API on the private Compose network. To manually test registration, login, current-user lookup, and logout with `curl`, use the safe sequence in the [local development guide](docs/local-development.md#manually-test-session-routes-with-curl). Verify the API directly if useful:
 
 ```sh
 curl --fail http://127.0.0.1:8000/health

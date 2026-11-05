@@ -1,10 +1,12 @@
 """Registration policy and password hashing for the session-auth feature."""
 
+import secrets
 from collections import OrderedDict, deque
 from threading import Lock
 from time import monotonic
 
 from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -13,19 +15,27 @@ from authedu_api.models import User
 
 EMAIL_UNIQUE_INDEX = "uq_users_email_lower"
 PASSWORD_HASHER = PasswordHasher()
+# Used only to perform dummy verification when an account/hash is missing or corrupt.
+DUMMY_PASSWORD_HASH = PASSWORD_HASHER.hash(secrets.token_urlsafe(32))
 
 
 class RegistrationRateLimiter:
     """Best-effort in-memory registration throttling for this single-process demo."""
 
     def __init__(
-        self, *, max_requests: int = 5, window_seconds: int = 600, max_clients: int = 10_000
+        self,
+        *,
+        max_requests: int = 5,
+        window_seconds: int = 600,
+        max_clients: int = 10_000,
+        error_message: str = "Too many registration attempts. Try again later.",
     ) -> None:
         if max_requests < 1 or window_seconds < 1 or max_clients < 1:
             raise ValueError("Rate-limiter limits must be positive.")
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.max_clients = max_clients
+        self.error_message = error_message
         self._attempts: OrderedDict[str, deque[float]] = OrderedDict()
         self._lock = Lock()
 
@@ -44,7 +54,7 @@ class RegistrationRateLimiter:
                 retry_after = max(1, int(attempts[0] + self.window_seconds - now))
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail="Too many registration attempts. Try again later.",
+                    detail=self.error_message,
                     headers={"Retry-After": str(retry_after)},
                 )
 
@@ -63,6 +73,19 @@ def normalize_email(email: str) -> str:
 def hash_password(password: str) -> str:
     """Hash with argon2-cffi's high-level Argon2id implementation and random salt."""
     return PASSWORD_HASHER.hash(password)
+
+def verify_password(password: str, password_hash: str) -> bool:
+    """Verify with argon2-cffi's high-level Argon2id implementation."""
+    try:
+        return PASSWORD_HASHER.verify(password_hash, password)
+    except InvalidHashError:
+        try:
+            PASSWORD_HASHER.verify(DUMMY_PASSWORD_HASH, password)
+        except VerificationError:
+            pass
+        return False
+    except VerificationError:
+        return False
 
 def enforce_registration_rate_limit(client_key: str) -> None:
     """Apply the process-local limiter; do not trust unconfigured proxy headers."""
