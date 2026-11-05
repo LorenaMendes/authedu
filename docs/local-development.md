@@ -56,9 +56,10 @@ Open <https://localhost:5173> (or the configured `FRONTEND_HOST_PORT`). Accept o
 
 ### Manually test session routes with curl
 
-Start the full Compose stack and use a **new email address**. The commands below prompt for credentials without echoing the password, keep the HttpOnly session cookie in a private temporary cookie jar, and keep CSRF proofs in shell memory. They use the local HTTPS Vite proxy so the request `Origin` matches `AUTHEDU_PUBLIC_ORIGIN`; do not add `curl -k` or send requests over the backend's loopback HTTP port.
+Start the full Compose stack and use a **new email address**. The commands below prompt for credentials without echoing the password, keep the HttpOnly session cookie in a private temporary cookie jar, and keep CSRF proofs in shell memory. The block is wrapped in a subshell: a failed command stops the test sequence but does not close or alter your interactive terminal. They use the local HTTPS Vite proxy so the request `Origin` matches `AUTHEDU_PUBLIC_ORIGIN`; do not add `curl -k` or send requests over the backend's loopback HTTP port.
 
 ```sh
+(
 set -eu
 read -r -p 'New test email: ' AUTHEDU_TEST_EMAIL
 read -r -s -p 'Test password (15+ characters): ' AUTHEDU_TEST_PASSWORD
@@ -117,6 +118,7 @@ STATUS=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}
    --cookie "$COOKIE_JAR" "$API/me")
 test "$STATUS" = '401'
 printf 'Post-logout /me returned the expected 401.\n'
+)
 ```
 
 The browser session cookie is a credential; do not print, copy, or commit the cookie jar. The CSRF proof is not an identity credential, but keep it out of logs and URLs; the logout header is passed through a mode-600 temporary curl config instead of a command-line argument. The password is not exported to curl and is streamed to it through stdin. The temporary directory and entered values are removed from the current shell when the script exits. This is a local smoke test, not production deployment guidance.
