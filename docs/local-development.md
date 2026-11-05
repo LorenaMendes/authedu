@@ -56,6 +56,22 @@ Open <https://localhost:5173> (or the configured `FRONTEND_HOST_PORT`). Accept o
 
 ### Manually test session routes with curl
 
+**Easiest option:** start the stack with `docker compose up --build -d`, then run
+`bash scripts/test-session-curl.sh` from the repository root. This works from a
+zsh terminal too: Bash runs the script in its own process, so it cannot close your
+terminal or change its shell options.
+
+The helper detects the published frontend port and checks the backend's trusted
+Origin before sending credentials. It prints a PASS/FAIL status for API health,
+registration, login, `/me`, missing-CSRF rejection, logout, and reuse of a revoked
+cookie. It generates throwaway credentials automatically and keeps cookies and
+CSRF proofs in private temporary files that are deleted on exit. Each run creates
+one local test account that remains in the database; do not use it against a
+production or shared database. It does not bypass TLS verification. Run
+`bash scripts/test-session-curl.sh --help` for prerequisites.
+
+The individual requests below are an alternative for inspecting the flow manually.
+
 Start the full Compose stack and use a **new email address**. The commands below prompt for credentials without echoing the password, keep the HttpOnly session cookie in a private temporary cookie jar, and keep CSRF proofs in shell memory. The block is wrapped in a subshell: a failed command stops the test sequence but does not close or alter your interactive terminal. The prompts work in Bash and zsh. Requests use the local HTTPS Vite proxy so `Origin` matches `AUTHEDU_PUBLIC_ORIGIN`; do not add `curl -k` or use the backend's loopback HTTP port.
 
 ```sh
@@ -68,7 +84,7 @@ read -r -s AUTHEDU_TEST_PASSWORD
 printf '\n'
 export AUTHEDU_TEST_EMAIL
 
-ORIGIN='https://localhost:5173'
+ORIGIN='https://localhost:5174'
 API="$ORIGIN/api"
 umask 077
 COOKIE_DIR=$(mktemp -d)
