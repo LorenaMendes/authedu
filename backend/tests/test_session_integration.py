@@ -9,11 +9,12 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from authedu_api import registration, session_routes
+from authedu_api.api import middleware
+from authedu_api.api.routes import sessions as session_routes
+from authedu_api.core.rate_limit import InMemoryRateLimiter
 from authedu_api.database import create_database_engine
 from authedu_api.main import app
 from authedu_api.models import AuthSession, User
-from authedu_api.registration import RegistrationRateLimiter
 
 TRUSTED_ORIGIN = "https://localhost:5173"
 
@@ -25,12 +26,12 @@ def session_app(test_database_url, monkeypatch):
     monkeypatch.setenv("AUTHEDU_CSRF_SECRET", secrets.token_urlsafe(48))
     monkeypatch.delenv("AUTHEDU_CSRF_SECRET_FILE", raising=False)
     monkeypatch.setattr(
-        registration, "_registration_rate_limiter", RegistrationRateLimiter()
+        middleware, "_registration_rate_limiter", InMemoryRateLimiter()
     )
     monkeypatch.setattr(
         session_routes,
         "_login_rate_limiter",
-        RegistrationRateLimiter(
+        InMemoryRateLimiter(
             max_requests=100,
             window_seconds=60,
             error_message="Too many login attempts. Try again later.",

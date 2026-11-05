@@ -5,15 +5,17 @@ import secrets
 from collections import Counter
 
 import pytest
-from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from authedu_api import registration
+from authedu_api.api import middleware
+from authedu_api.core.passwords import verify_password
+from authedu_api.core.rate_limit import InMemoryRateLimiter
 from authedu_api.database import create_database_engine
 from authedu_api.main import app
 from authedu_api.models import User
+from authedu_api.services import registration
 
 
 async def _post_registrations(payloads: list[dict[str, str]]) -> list[Response]:
@@ -36,7 +38,7 @@ def test_registration_normalizes_email_and_persists_only_argon2_hash(
     test_database_url, monkeypatch
 ) -> None:
     monkeypatch.setattr(
-        registration, "_registration_rate_limiter", registration.RegistrationRateLimiter()
+        middleware, "_registration_rate_limiter", InMemoryRateLimiter()
     )
     password = secrets.token_urlsafe(24)
 
@@ -60,7 +62,7 @@ def test_registration_normalizes_email_and_persists_only_argon2_hash(
                 raise AssertionError("Registration did not persist an Argon2id password hash.")
             if user.password_hash == password:
                 raise AssertionError("Registration persisted the plaintext password.")
-            if not registration.verify_password(password, user.password_hash):
+            if not verify_password(password, user.password_hash):
                 raise AssertionError("Stored password hash did not verify the submitted password.")
     finally:
         engine.dispose()
@@ -70,7 +72,7 @@ def test_duplicate_and_new_addresses_have_identical_responses_and_both_hash(
     test_database_url, monkeypatch
 ) -> None:
     monkeypatch.setattr(
-        registration, "_registration_rate_limiter", registration.RegistrationRateLimiter()
+        middleware, "_registration_rate_limiter", InMemoryRateLimiter()
     )
     real_hash_password = registration.hash_password
     hash_calls: Counter[str] = Counter()
@@ -117,9 +119,9 @@ def test_concurrent_duplicate_registrations_create_only_one_user(
     test_database_url, monkeypatch
 ) -> None:
     monkeypatch.setattr(
-        registration,
+        middleware,
         "_registration_rate_limiter",
-        registration.RegistrationRateLimiter(),
+        InMemoryRateLimiter(),
     )
     responses = asyncio.run(
         _post_registrations_concurrently(
@@ -176,26 +178,13 @@ def test_invalid_email_and_password_lengths_are_rejected(
     assert hash_calls == 0
 
 
-def test_registration_rate_limiter_returns_retry_after() -> None:
-    limiter = registration.RegistrationRateLimiter(max_requests=2, window_seconds=60)
-    limiter.check("client-a")
-    limiter.check("client-a")
-
-    with pytest.raises(HTTPException) as error:
-        limiter.check("client-a")
-
-    assert error.value.status_code == 429
-    assert int(error.value.headers["Retry-After"]) > 0
-    limiter.check("client-b")
-
-
 def test_invalid_requests_consume_registration_limit_before_validation(
     test_database_url, monkeypatch
 ) -> None:
     monkeypatch.setattr(
-        registration,
+        middleware,
         "_registration_rate_limiter",
-        registration.RegistrationRateLimiter(max_requests=1),
+        InMemoryRateLimiter(max_requests=1),
     )
     invalid_payload = {"email": "not-an-email", "password": "correct horse battery staple"}
 

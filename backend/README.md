@@ -2,6 +2,15 @@
 
 The API includes a PostgreSQL-backed persistence layer, versioned schema, registration, and mounted cookie-backed session login/current-user/logout endpoints. Route and app-level integration tests exercise the session flow. Authorization and note endpoints are not implemented yet. `GET /health` reports process liveness and does not require PostgreSQL.
 
+## Code layout
+
+[main.py](src/authedu_api/main.py) composes the app; HTTP endpoints live in
+[api/routes](src/authedu_api/api/routes/__init__.py), registration/session operations
+in [services](src/authedu_api/services/__init__.py), and reusable security helpers
+in [core](src/authedu_api/core/__init__.py). Database models and public schemas
+remain shared. See the [directory guide](../docs/project-structure.md) for a
+responsibility map and the unchanged security boundaries and entrypoints.
+
 ## Requirements
 
 - CPython 3.14.10 (pinned in `.python-version`)
