@@ -1,0 +1,1 @@
+"""Registration and credential lifecycle operations."""

@@ -1,6 +1,6 @@
 # Session-authentication implementation notes (issue #23)
 
-The session service, ORM model, migration, login/current-user/logout handlers, and route/app integration tests are implemented. The session router is mounted by `main.py`.
+The session service, ORM model, migration, login/current-user/logout handlers, and route/app integration tests are implemented. The session router in [api/routes/sessions.py](../backend/src/authedu_api/api/routes/sessions.py) is mounted by [main.py](../backend/src/authedu_api/main.py). See [the directory guide](project-structure.md) for the separation between HTTP adapters, services, and security helpers.
 
 ## Suggested implementation order
 
@@ -27,11 +27,12 @@ The session service, ORM model, migration, login/current-user/logout handlers, a
 
 ## Existing extension points
 
-- `User.password_hash` and the Argon2id helper are in `backend/src/authedu_api/registration.py`.
-- Request-scoped SQLAlchemy sessions are supplied by `get_database_session()` in `backend/src/authedu_api/database.py`.
-- `LoginRequest` and `AuthenticatedUser` schemas are in `backend/src/authedu_api/schemas.py`.
-- `AuthSession` and its migration are in `backend/src/authedu_api/models.py` and `backend/alembic/versions/0003_auth_session.py`.
-- Handlers are in `backend/src/authedu_api/session_routes.py`; `backend/src/authedu_api/main.py` mounts the router.
+- `User.password_hash` and `AuthSession` are defined in [models.py](../backend/src/authedu_api/models.py); their database schema is managed by [Alembic migrations](../backend/alembic/versions/0003_auth_session.py).
+- The shared Argon2id hasher and dummy verification hash live in [core/passwords.py](../backend/src/authedu_api/core/passwords.py), while HMAC CSRF helpers live in [core/csrf.py](../backend/src/authedu_api/core/csrf.py).
+- Credential verification and session lifecycle logic live in [services/sessions.py](../backend/src/authedu_api/services/sessions.py), separate from [registration persistence](../backend/src/authedu_api/services/registration.py).
+- Request-scoped SQLAlchemy sessions are supplied by `get_database_session()` in [database.py](../backend/src/authedu_api/database.py).
+- Public request and response schemas are in [schemas.py](../backend/src/authedu_api/schemas.py).
+- Origin checks, cookie handling, and HTTP error mapping stay in [api/routes/sessions.py](../backend/src/authedu_api/api/routes/sessions.py); [main.py](../backend/src/authedu_api/main.py) mounts the router.
 
 ## Review questions while implementing
 
@@ -43,18 +44,11 @@ The session service, ORM model, migration, login/current-user/logout handlers, a
 - Are `AUTHEDU_PUBLIC_ORIGIN` and the CSRF signing secret configured before enabling session routes?
 - Are privilege transitions in scope now? There is no role schema yet; document what is not applicable now and leave a clear rotation/invalidation hook for later.
 
-## Suggested test function signatures
+## Existing test coverage
 
-Add real tests to `backend/tests/test_sessions.py` as you implement each behavior. These are names only; they are not placeholder passing tests.
+- [Session service tests](../backend/tests/test_session_service.py): credential verification, digest-only storage, expiry, activity refresh, revocation, and stale ORM-state rejection.
+- [Session route tests](../backend/tests/test_session_routes.py): Origin checks, credential failures, cookies, CSRF, HTTP errors, and atomic rotation rollback.
+- [Application integration test](../backend/tests/test_session_integration.py): registration → login → current-user lookup → logout using the real app and request-scoped database dependency.
+- [CSRF tests](../backend/tests/test_csrf.py), [password tests](../backend/tests/test_passwords.py), and [rate-limit test](../backend/tests/test_rate_limit.py): shared security helper contracts.
 
-```python
-def test_login_rejects_unknown_user_missing_hash_and_wrong_password(...): ...
-def test_login_rejects_missing_or_untrusted_origin(...): ...
-def test_login_sets_secure_session_cookie_and_returns_csrf_proof(...): ...
-def test_successful_login_stores_only_session_token_digest(...): ...
-def test_session_idle_and_absolute_expiry_are_enforced(...): ...
-def test_revoked_session_is_rejected(...): ...
-def test_logout_revokes_session_and_clears_cookie(...): ...
-def test_csrf_contract_rejects_missing_and_invalid_tokens(...): ...
-def test_session_cookie_has_documented_security_attributes(...): ...
-```
+HTTPX integration tests are not browser tests; browser cookie enforcement and frontend flows still need separate coverage.

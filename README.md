@@ -120,6 +120,7 @@ See the [CI guide](docs/continuous-integration.md) for the locked Python depende
 
 ## Project and learning guides
 
+- [Directory layout and module responsibilities](docs/project-structure.md)
 - [Project goals, planned modules, and security principles](.github/project-plan.md)
 - [Architecture and database foundation](docs/database-foundation.md)
 - [Local setup, HTTPS, seed/reset, and troubleshooting](docs/local-development.md)

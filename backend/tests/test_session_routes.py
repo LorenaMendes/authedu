@@ -13,12 +13,14 @@ from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from authedu_api import registration, session_routes, session_service
+from authedu_api.api.exception_handlers import handle_request_validation_error
+from authedu_api.api.routes import sessions as session_routes
+from authedu_api.core import csrf, passwords
+from authedu_api.core.rate_limit import InMemoryRateLimiter
 from authedu_api.database import create_database_engine, get_database_session
-from authedu_api.main import handle_request_validation_error
 from authedu_api.models import AuthSession, User
-from authedu_api.registration import RegistrationRateLimiter
 from authedu_api.schemas import LoginResponse
+from authedu_api.services import sessions as session_service
 
 TRUSTED_ORIGIN = "https://localhost:5173"
 
@@ -32,7 +34,7 @@ def login_client(test_database_url, monkeypatch):
     monkeypatch.setattr(
         session_routes,
         "_login_rate_limiter",
-        RegistrationRateLimiter(
+        InMemoryRateLimiter(
             max_requests=100,
             window_seconds=60,
             error_message="Too many login attempts. Try again later.",
@@ -130,7 +132,7 @@ def test_successful_login_sets_secure_cookie_and_returns_csrf_proof(login_client
     client, engine = login_client
     email = f"{uuid4().hex}@example.com"
     password = secrets.token_urlsafe(24)
-    user = User(email=email, password_hash=registration.hash_password(password))
+    user = User(email=email, password_hash=passwords.hash_password(password))
     with Session(engine) as session:
         session.add(user)
         session.commit()
@@ -157,7 +159,7 @@ def test_successful_login_sets_secure_cookie_and_returns_csrf_proof(login_client
         forbidden=("domain=",),
     )
 
-    session_service.validate_csrf_token(session_token=cookie, submitted_token=csrf_token)
+    csrf.validate_csrf_token(session_token=cookie, submitted_token=csrf_token)
     with Session(engine) as session:
         auth_session = session.scalar(select(AuthSession))
         assert auth_session is not None
@@ -200,7 +202,7 @@ def test_login_uses_same_generic_failure_for_unknown_wrong_and_hashless_accounts
     _add_user(
         engine,
         email=email,
-        password_hash=registration.hash_password(secrets.token_urlsafe(24)),
+        password_hash=passwords.hash_password(secrets.token_urlsafe(24)),
     )
     hashless_email = f"{uuid4().hex}@example.com"
     _add_user(engine, email=hashless_email, password_hash=None)
@@ -229,7 +231,7 @@ def test_successful_login_revokes_the_presented_session(login_client) -> None:
     email = f"{uuid4().hex}@example.com"
     password = secrets.token_urlsafe(24)
     with Session(engine) as session:
-        user = User(email=email, password_hash=registration.hash_password(password))
+        user = User(email=email, password_hash=passwords.hash_password(password))
         session.add(user)
         session.commit()
         session.refresh(user)
@@ -265,7 +267,7 @@ def test_failed_login_rotation_keeps_the_existing_session_valid(
     email = f"{uuid4().hex}@example.com"
     password = secrets.token_urlsafe(24)
     with Session(engine) as session:
-        user = User(email=email, password_hash=registration.hash_password(password))
+        user = User(email=email, password_hash=passwords.hash_password(password))
         session.add(user)
         session.commit()
         session.refresh(user)
@@ -298,7 +300,7 @@ def test_failure_after_staging_old_session_revocation_rolls_back_rotation(
     email = f"{uuid4().hex}@example.com"
     password = secrets.token_urlsafe(24)
     with Session(engine) as session:
-        user = User(email=email, password_hash=registration.hash_password(password))
+        user = User(email=email, password_hash=passwords.hash_password(password))
         session.add(user)
         session.commit()
         session.refresh(user)
@@ -332,7 +334,7 @@ def test_login_rate_limit_returns_retry_after(login_client, monkeypatch) -> None
     monkeypatch.setattr(
         session_routes,
         "_login_rate_limiter",
-        RegistrationRateLimiter(
+        InMemoryRateLimiter(
             max_requests=1,
             window_seconds=60,
             error_message="Too many login attempts. Try again later.",
@@ -368,7 +370,7 @@ def test_login_fails_closed_when_csrf_signing_key_is_not_configured(
     client, engine = login_client
     email = f"{uuid4().hex}@example.com"
     password = secrets.token_urlsafe(24)
-    _add_user(engine, email=email, password_hash=registration.hash_password(password))
+    _add_user(engine, email=email, password_hash=passwords.hash_password(password))
     monkeypatch.delenv("AUTHEDU_CSRF_SECRET", raising=False)
 
     response = _login(client, email=email, password=password)
@@ -424,7 +426,7 @@ def test_current_user_resolves_session_and_issues_fresh_csrf_proof(login_client)
     assert response.headers["cache-control"] == "no-store"
     payload = response.json()
     assert payload["user"] == {"id": str(user_id), "email": email}
-    session_service.validate_csrf_token(
+    csrf.validate_csrf_token(
         session_token=session_token, submitted_token=payload["csrf_token"]
     )
 
@@ -493,7 +495,7 @@ def test_logout_revokes_session_and_clears_cookie(login_client) -> None:
         session.commit()
         session.refresh(user)
         session_token, _ = session_service.create_session(session, user=user)
-    csrf_token = session_service.issue_csrf_token(session_token=session_token)
+    csrf_token = csrf.issue_csrf_token(session_token=session_token)
 
     response = _request(
         app,
@@ -547,7 +549,7 @@ def test_logout_returns_unavailable_when_csrf_signing_key_is_missing(
         session.commit()
         session.refresh(user)
         session_token, _ = session_service.create_session(session, user=user)
-    csrf_token = session_service.issue_csrf_token(session_token=session_token)
+    csrf_token = csrf.issue_csrf_token(session_token=session_token)
     monkeypatch.delenv("AUTHEDU_CSRF_SECRET", raising=False)
 
     response = _request(

@@ -6,29 +6,31 @@ from datetime import timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
+from authedu_api.core.csrf import (
+    issue_csrf_token,
+    validate_csrf_configuration,
+    validate_csrf_token,
+)
+from authedu_api.core.rate_limit import InMemoryRateLimiter
 from authedu_api.database import get_database_session
 from authedu_api.models import User
-from authedu_api.registration import RegistrationRateLimiter
 from authedu_api.schemas import (
     AuthenticatedUser,
     CurrentSessionResponse,
     LoginRequest,
     LoginResponse,
 )
-from authedu_api.session_service import (
+from authedu_api.services.sessions import (
     SESSION_ABSOLUTE_TIMEOUT,
     create_session,
-    issue_csrf_token,
     resolve_session_user,
     revoke_session,
-    validate_csrf_configuration,
-    validate_csrf_token,
     verify_credentials,
 )
 
 router = APIRouter(tags=["sessions"])
 SESSION_COOKIE_NAME = "__Host-authedu_session"
-_login_rate_limiter = RegistrationRateLimiter(
+_login_rate_limiter = InMemoryRateLimiter(
     max_requests=10,
     window_seconds=60,
     error_message="Too many login attempts. Try again later.",
